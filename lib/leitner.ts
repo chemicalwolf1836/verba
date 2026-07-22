@@ -1,3 +1,5 @@
+import type { Card, Course, Unit } from '@/lib/courses/types'
+
 export type Box = 1 | 2 | 3 | 4 | 5
 
 export type CardProgress = {
@@ -43,4 +45,67 @@ export function grade(
     correct: (prev?.correct ?? 0) + (correct ? 1 : 0),
     lastSeen: now,
   }
+}
+
+/** Cards needed in a unit before the next one opens. Rounds up. */
+export function unlockPoint(unitCardCount: number): number {
+  return Math.ceil(unitCardCount * TUNING.UNLOCK_THRESHOLD)
+}
+
+function learnedInUnit(course: Course, unit: Unit, progress: ProgressMap): number {
+  return course.cards.filter((c) => c.unitId === unit.id && isLearned(progress[c.id])).length
+}
+
+/**
+ * Units unlock by demonstrated mastery, never by calendar date. This is what makes
+ * pace emergent: study heavily and units open in days, lightly and they open in weeks.
+ */
+export function unlockedUnits(course: Course, progress: ProgressMap): Unit[] {
+  const ordered = [...course.units].sort((a, b) => a.index - b.index)
+  const out: Unit[] = []
+  for (const unit of ordered) {
+    out.push(unit)
+    const total = course.cards.filter((c) => c.unitId === unit.id).length
+    if (learnedInUnit(course, unit, progress) < unlockPoint(total)) break
+  }
+  return out
+}
+
+export function unlockedCards(course: Course, progress: ProgressMap): Card[] {
+  const open = new Set(unlockedUnits(course, progress).map((u) => u.id))
+  // Cards with no unit - phrases - are available from the start.
+  return course.cards.filter((c) => c.unitId === '' || open.has(c.unitId))
+}
+
+/**
+ * Lazy queue. Deterministic given its arguments, so tests never stub Math.random.
+ * `history` is the ids already shown this session, oldest first.
+ */
+export function nextCard(
+  pool: Card[],
+  progress: ProgressMap,
+  history: string[],
+): Card | null {
+  if (pool.length === 0) return null
+
+  const recent = new Set(history.slice(-TUNING.MIN_GAP))
+  const unseen = pool.filter((c) => (progress[c.id]?.seen ?? 0) === 0)
+  const seen = pool.filter((c) => (progress[c.id]?.seen ?? 0) > 0)
+
+  const wantsNew = history.length % TUNING.NEW_CARD_INTERVAL === 0
+  if (wantsNew && unseen.length > 0) return unseen[0]
+
+  const byWeakest = [...seen].sort((a, b) => {
+    const pa = progress[a.id]
+    const pb = progress[b.id]
+    const boxDiff = (pa?.box ?? 1) - (pb?.box ?? 1)
+    if (boxDiff !== 0) return boxDiff
+    return (pa?.lastSeen ?? 0) - (pb?.lastSeen ?? 0)
+  })
+
+  const fresh = byWeakest.find((c) => !recent.has(c.id))
+  if (fresh) return fresh
+  if (unseen.length > 0) return unseen[0]
+  // Everything is recent - MIN_GAP yields rather than stalling the session.
+  return byWeakest[0] ?? null
 }
