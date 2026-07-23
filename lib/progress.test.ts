@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest'
-import { PROGRESS_KEY, loadProgress, saveProgress } from './progress'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { PROGRESS_KEY, loadProgress, saveProgress, subscribeProgress } from './progress'
 import type { ProgressMap } from './leitner'
 
 const sample: ProgressMap = {
@@ -35,5 +35,42 @@ describe('progress storage', () => {
     )
     const loaded = loadProgress()
     expect(Object.keys(loaded)).toEqual(['good'])
+  })
+
+  it('drops an entry whose box is a non-integer rather than trusting it', () => {
+    localStorage.setItem(
+      PROGRESS_KEY,
+      JSON.stringify({ good: sample['bjt-vocab-会議'], bad: { box: 2.5, seen: 1, correct: 1, lastSeen: 1 } }),
+    )
+    const loaded = loadProgress()
+    expect(Object.keys(loaded)).toEqual(['good'])
+  })
+
+  it('does not throw when the write fails (quota exceeded or private mode)', () => {
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('quota', 'QuotaExceededError')
+    })
+    expect(() => saveProgress(sample)).not.toThrow()
+    spy.mockRestore()
+  })
+
+  it('notifies subscribers after a successful write', () => {
+    const fn = vi.fn()
+    const unsubscribe = subscribeProgress(fn)
+    saveProgress(sample)
+    expect(fn).toHaveBeenCalled()
+    unsubscribe()
+  })
+
+  it('does not notify subscribers when the write fails', () => {
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('quota', 'QuotaExceededError')
+    })
+    const fn = vi.fn()
+    const unsubscribe = subscribeProgress(fn)
+    saveProgress(sample)
+    expect(fn).not.toHaveBeenCalled()
+    unsubscribe()
+    spy.mockRestore()
   })
 })

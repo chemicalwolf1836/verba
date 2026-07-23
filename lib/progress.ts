@@ -14,6 +14,7 @@ function isCardProgress(v: unknown): v is CardProgress {
   const p = v as Record<string, unknown>
   return (
     typeof p.box === 'number' &&
+    Number.isInteger(p.box) &&
     p.box >= 1 &&
     p.box <= 5 &&
     typeof p.seen === 'number' &&
@@ -45,10 +46,11 @@ export function saveProgress(next: ProgressMap): void {
   if (typeof window === 'undefined') return
   try {
     window.localStorage.setItem(PROGRESS_KEY, JSON.stringify(next))
+    listeners.forEach((fn) => fn())
   } catch {
     // Quota or private-mode failure. The session continues in memory.
+    // Do not notify - the stored value did not actually change.
   }
-  listeners.forEach((fn) => fn())
 }
 
 export function subscribeProgress(fn: () => void): () => void {
