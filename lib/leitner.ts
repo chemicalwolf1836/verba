@@ -72,9 +72,17 @@ export function unlockedUnits(course: Course, progress: ProgressMap): Unit[] {
 }
 
 export function unlockedCards(course: Course, progress: ProgressMap): Card[] {
-  const open = new Set(unlockedUnits(course, progress).map((u) => u.id))
-  // Cards with no unit - phrases - are available from the start.
-  return course.cards.filter((c) => c.unitId === '' || open.has(c.unitId))
+  // Build the pool in ascending unit-index order ourselves - don't rely on
+  // course.cards happening to be unit-sorted. This is what lets nextCard's
+  // unseen[0] satisfy "a new card comes from the lowest-index unlocked unit"
+  // regardless of how a given course's data file orders its rows.
+  const byUnit = unlockedUnits(course, progress).flatMap((unit) =>
+    course.cards.filter((c) => c.unitId === unit.id),
+  )
+  // Cards with no unit - phrases - have no unit index to sort by. They're
+  // available from the start, so append them after the unit-ordered cards.
+  const phrases = course.cards.filter((c) => c.unitId === '')
+  return [...byUnit, ...phrases]
 }
 
 /**
@@ -98,7 +106,7 @@ export function nextCard(
   const byWeakest = [...seen].sort((a, b) => {
     const pa = progress[a.id]
     const pb = progress[b.id]
-    const boxDiff = (pa?.box ?? 1) - (pb?.box ?? 1)
+    const boxDiff = boxOf(pa) - boxOf(pb)
     if (boxDiff !== 0) return boxDiff
     return (pa?.lastSeen ?? 0) - (pb?.lastSeen ?? 0)
   })

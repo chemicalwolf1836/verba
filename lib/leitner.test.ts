@@ -96,6 +96,11 @@ describe('unlockPoint', () => {
     expect(unlockPoint(4)).toBe(3)
     expect(unlockPoint(1)).toBe(1)
   })
+
+  it('rounds up, not to nearest or down, at a non-coincident boundary', () => {
+    // 0.75 * 3 = 2.25 -> ceil gives 3, round gives 2, floor gives 2
+    expect(unlockPoint(3)).toBe(3)
+  })
 })
 
 describe('unlockedUnits', () => {
@@ -124,6 +129,33 @@ describe('unlockedCards', () => {
       cards: [...course.cards, card('p0', '')],
     }
     expect(unlockedCards(withPhrase, {}).map((c) => c.id)).toContain('p0')
+  })
+
+  it('orders the pool by ascending unit index, not by course.cards insertion order', () => {
+    // course.cards deliberately lists the unit-2 card before the unit-1 cards.
+    // If unlockedCards just preserved course.cards order, a new-card draw would
+    // hand back the unit-2 card instead of respecting unit-index order.
+    const misordered: Course = {
+      id: 'test2',
+      name: 'Test2',
+      unitLabel: 'Unit',
+      units: [
+        { id: 'u1', index: 1, theme: 't' },
+        { id: 'u2', index: 2, theme: 't' },
+      ],
+      cards: [
+        card('b0', 'u2'),
+        card('a0', 'u1'),
+        card('a1', 'u1'),
+        card('a2', 'u1'),
+        card('a3', 'u1'),
+      ],
+    }
+    // a1-a3 learned meets u1's unlockPoint(4) = 3, so u2 unlocks too. a0 and b0
+    // are both unseen, and history=[] is a new-card position.
+    const progress = learned(['a1', 'a2', 'a3'])
+    const pool = unlockedCards(misordered, progress)
+    expect(nextCard(pool, progress, [])?.id).toBe('a0')
   })
 })
 
