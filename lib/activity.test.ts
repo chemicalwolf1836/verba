@@ -38,6 +38,15 @@ describe('recordGrade', () => {
     recordGrade(NOW)
     expect(loadActivity()).toEqual({ '2026-07-22': 1 })
   })
+
+  it('keeps the oldest surviving day and drops the day just before it', () => {
+    recordGrade(NOW - 31 * DAY)
+    recordGrade(NOW - 30 * DAY)
+    recordGrade(NOW)
+    const keys = Object.keys(loadActivity())
+    expect(keys).toContain(dayKey(NOW - 30 * DAY))
+    expect(keys).not.toContain(dayKey(NOW - 31 * DAY))
+  })
 })
 
 describe('dailyRate', () => {
@@ -53,6 +62,14 @@ describe('dailyRate', () => {
   it('ignores days outside the window', () => {
     const log = { '2026-07-01': 700 }
     expect(dailyRate(log, NOW)).toBe(0)
+  })
+
+  it('counts the last in-window day and excludes the first out-of-window day', () => {
+    const included = { [dayKey(NOW - 6 * DAY)]: 7 }
+    expect(dailyRate(included, NOW)).toBe(1)
+
+    const excluded = { [dayKey(NOW - 7 * DAY)]: 700 }
+    expect(dailyRate(excluded, NOW)).toBe(0)
   })
 })
 
