@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import {
   ACTIVITY_KEY,
   dayKey,
@@ -6,6 +6,7 @@ import {
   loadActivity,
   projectDays,
   recordGrade,
+  subscribeActivity,
 } from './activity'
 
 const NOW = Date.UTC(2026, 6, 22, 12, 0, 0)
@@ -46,6 +47,26 @@ describe('recordGrade', () => {
     const keys = Object.keys(loadActivity())
     expect(keys).toContain(dayKey(NOW - 30 * DAY))
     expect(keys).not.toContain(dayKey(NOW - 31 * DAY))
+  })
+
+  it('notifies a same-tab subscriber after a successful write (the storage event does not fire in the writing tab)', () => {
+    const fn = vi.fn()
+    const unsubscribe = subscribeActivity(fn)
+    recordGrade(NOW)
+    expect(fn).toHaveBeenCalled()
+    unsubscribe()
+  })
+
+  it('does not notify subscribers when the write fails', () => {
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('quota', 'QuotaExceededError')
+    })
+    const fn = vi.fn()
+    const unsubscribe = subscribeActivity(fn)
+    recordGrade(NOW)
+    expect(fn).not.toHaveBeenCalled()
+    unsubscribe()
+    spy.mockRestore()
   })
 })
 

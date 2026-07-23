@@ -11,6 +11,8 @@ const DAY = 86_400_000
 const WINDOW_DAYS = 7
 const RETAIN_DAYS = 30
 
+const listeners = new Set<() => void>()
+
 export function dayKey(now: number): string {
   return new Date(now).toISOString().slice(0, 10)
 }
@@ -44,8 +46,28 @@ export function recordGrade(now: number): void {
   }
   try {
     window.localStorage.setItem(ACTIVITY_KEY, JSON.stringify(trimmed))
+    listeners.forEach((fn) => fn())
   } catch {
     // Quota failure is not worth interrupting a study session for.
+    // Do not notify - the stored value did not actually change.
+  }
+}
+
+/**
+ * Mirrors subscribeProgress: the browser `storage` event never fires in the tab
+ * that made the write, so a same-tab `recordGrade` (e.g. mid study-session) would
+ * not reach same-tab listeners without the explicit notify above. The `storage`
+ * listener here covers the cross-tab case instead.
+ */
+export function subscribeActivity(fn: () => void): () => void {
+  listeners.add(fn)
+  const onStorage = (e: StorageEvent) => {
+    if (e.key === ACTIVITY_KEY) fn()
+  }
+  if (typeof window !== 'undefined') window.addEventListener('storage', onStorage)
+  return () => {
+    listeners.delete(fn)
+    if (typeof window !== 'undefined') window.removeEventListener('storage', onStorage)
   }
 }
 
