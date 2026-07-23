@@ -1,60 +1,145 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { speak, speechStatus, onVoicesChanged, type SpeechStatus } from '@/lib/speech'
+import { useMemo, useReducer } from 'react'
+import Link from 'next/link'
+import { CardStage } from '@/components/CardStage'
+import { VoiceWarning } from '@/components/VoiceWarning'
+import { matchesAnswer } from '@/lib/answer'
+import { getCourse, DEFAULT_COURSE_ID, type Card } from '@/lib/courses'
+import { nextCard, unlockedCards, type ProgressMap } from '@/lib/leitner'
+import { useProgress } from '@/lib/useProgress'
 
-const CARD = {
-  jp: '会議',
-  reading: 'かいぎ',
-  meaning: 'meeting',
-  exampleJp: '会議は十時に始まります',
-  exampleEn: 'The meeting begins at ten',
+export type Phase = 'introduce' | 'prompt' | 'revealed'
+
+export type State = {
+  phase: Phase
+  typed: string
+  history: string[]
+  /**
+   * Cards already introduced this session. Introducing is not grading, so `seen`
+   * stays 0 - without this list the same new card would re-introduce itself every
+   * time the queue served it, and never become a real prompt.
+   */
+  introduced: string[]
+  tally: { studied: number; got: number; missed: number }
+}
+
+export type Action =
+  | { type: 'reveal' }
+  | { type: 'type'; value: string }
+  | { type: 'graded'; correct: boolean; cardId: string }
+  | { type: 'continue'; cardId: string }
+
+export const initial: State = {
+  phase: 'prompt',
+  typed: '',
+  history: [],
+  introduced: [],
+  tally: { studied: 0, got: 0, missed: 0 },
+}
+
+export function reducer(state: State, action: Action): State {
+  switch (action.type) {
+    case 'type':
+      return { ...state, typed: action.value }
+    case 'reveal':
+      return { ...state, phase: 'revealed' }
+    case 'continue':
+      // An introduced card is not graded - it re-enters the queue as a real prompt.
+      return {
+        ...state,
+        phase: 'prompt',
+        typed: '',
+        history: [...state.history, action.cardId],
+        introduced: [...state.introduced, action.cardId],
+      }
+    case 'graded':
+      return {
+        ...state,
+        phase: 'prompt',
+        typed: '',
+        history: [...state.history, action.cardId],
+        tally: {
+          studied: state.tally.studied + 1,
+          got: state.tally.got + (action.correct ? 1 : 0),
+          missed: state.tally.missed + (action.correct ? 0 : 1),
+        },
+      }
+  }
+}
+
+/**
+ * A card is a first exposure only while it has never been graded (`seen === 0`)
+ * and this session hasn't already walked it through the introduce phase. Once
+ * either is true, isNewCard is false for the rest of the session - so a card
+ * can never re-enter 'introduce' after being introduced or graded once.
+ */
+export function isNewCard(card: Card | null, progress: ProgressMap, state: State): boolean {
+  return card !== null && (progress[card.id]?.seen ?? 0) === 0 && !state.introduced.includes(card.id)
+}
+
+/**
+ * The rendered phase is derived, not stored directly: a first-exposure card is
+ * always shown as 'introduce' regardless of the reducer's last phase, so there is
+ * no action path that can render a fresh card as a blind prompt or a revealed
+ * grade screen. `state.phase !== 'revealed'` is a defensive guard - introduce-phase
+ * cards never dispatch 'reveal', so this branch should be unreachable in practice.
+ */
+export function derivePhase(isNew: boolean, state: State): Phase {
+  return isNew && state.phase !== 'revealed' ? 'introduce' : state.phase
 }
 
 export default function StudyPage() {
-  const [status, setStatus] = useState<SpeechStatus>('unsupported')
-  const [revealed, setRevealed] = useState(false)
+  const course = getCourse(DEFAULT_COURSE_ID)!
+  const { progress, gradeCard } = useProgress()
+  const [state, dispatch] = useReducer(reducer, initial)
 
-  useEffect(() => {
-    setStatus(speechStatus())
-    return onVoicesChanged(() => setStatus(speechStatus()))
-  }, [])
+  const pool = useMemo(() => unlockedCards(course, progress), [course, progress])
+  const card: Card | null = useMemo(
+    () => nextCard(pool, progress, state.history),
+    [pool, progress, state.history],
+  )
+
+  const isNew = isNewCard(card, progress, state)
+  const phase: Phase = derivePhase(isNew, state)
+
+  if (!card) {
+    return (
+      <main className="mx-auto max-w-lg px-4 py-8 text-center">
+        <p className="text-lg">Nothing to study right now.</p>
+        <Link href="/" className="mt-4 inline-block underline">
+          Back home
+        </Link>
+      </main>
+    )
+  }
 
   return (
-    <main className="mx-auto max-w-lg px-4 py-8">
-      {status === 'no-japanese-voice' && (
-        <p className="mb-4 rounded-lg bg-orange-100 p-3 text-sm text-orange-900">
-          No Japanese voice is installed on this device, so audio will be read with an
-          English voice. Add a Japanese voice in your system settings.
-        </p>
-      )}
+    <main className="mx-auto max-w-lg px-4 py-6">
+      <header className="mb-4 flex items-center justify-between text-sm text-[var(--color-muted)]">
+        <span>
+          {state.tally.studied} studied · {state.tally.got} got
+        </span>
+        <Link href="/" className="underline">
+          Finish
+        </Link>
+      </header>
 
-      <button
-        onClick={() => speak(CARD.jp)}
-        className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-[var(--color-accent)] text-3xl text-white"
-        aria-label="Play audio"
-      >
-        ▶
-      </button>
+      <VoiceWarning />
 
-      {revealed ? (
-        <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-card)] p-6 text-center">
-          <p className="text-4xl font-bold">{CARD.jp}</p>
-          <p className="mt-1 text-[var(--color-muted)]">{CARD.reading}</p>
-          <p className="mt-2 text-lg">{CARD.meaning}</p>
-          <p className="mt-4 border-t border-dashed border-[var(--color-line)] pt-4">
-            {CARD.exampleJp}
-          </p>
-          <p className="mt-1 text-sm text-[var(--color-muted)]">{CARD.exampleEn}</p>
-        </div>
-      ) : (
-        <button
-          onClick={() => setRevealed(true)}
-          className="w-full rounded-lg bg-[var(--color-ink)] py-3 font-bold text-[var(--color-card)]"
-        >
-          Reveal
-        </button>
-      )}
+      <CardStage
+        card={card}
+        phase={phase}
+        typed={state.typed}
+        matched={matchesAnswer(state.typed, card)}
+        onType={(value) => dispatch({ type: 'type', value })}
+        onReveal={() => dispatch({ type: 'reveal' })}
+        onContinue={() => dispatch({ type: 'continue', cardId: card.id })}
+        onGrade={(correct) => {
+          gradeCard(card.id, correct)
+          dispatch({ type: 'graded', correct, cardId: card.id })
+        }}
+      />
     </main>
   )
 }
