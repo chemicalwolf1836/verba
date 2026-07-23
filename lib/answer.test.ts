@@ -4,6 +4,7 @@ import { matchesAnswer } from './answer'
 const kaigi = { jp: '会議', reading: 'かいぎ' }
 const wa = { jp: 'は', reading: 'wa' }
 const houkoku = { jp: '報告する', reading: 'ほうこくする' }
+const onegai = { jp: 'お願い', reading: 'onegai' }
 
 describe('matchesAnswer', () => {
   it('rejects an empty answer', () => {
@@ -65,12 +66,34 @@ describe('matchesAnswer', () => {
     expect(matchesAnswer('wo', wo)).toBe(true)
   })
 
-  it('accepts long vowels written with a macron or a trailing hyphen', () => {
+  it('accepts long vowels written with a macron', () => {
     expect(matchesAnswer('hōkokusuru', houkoku)).toBe(true)
-    expect(matchesAnswer('ho-kokusuru', houkoku)).toBe(true)
+  })
+
+  it('treats a literal hyphen as ordinary punctuation, not a long-vowel mark', () => {
+    // A bare ASCII hyphen no longer folds to a long vowel - that rule wrongly
+    // rewrote honorific o- prefixes (o-negai -> ounegai, no longer matching
+    // onegai). It is stripped as plain punctuation instead, so this no longer
+    // matches a genuine long vowel written as "ho-kokusuru".
+    expect(matchesAnswer('ho-kokusuru', houkoku)).toBe(false)
+  })
+
+  it('accepts a hyphenated honorific o- prefix against the plain reading', () => {
+    expect(matchesAnswer('onegai', onegai)).toBe(true)
+    expect(matchesAnswer('o-negai', onegai)).toBe(true)
   })
 
   it('rejects a wrong answer', () => {
     expect(matchesAnswer('kaisha', kaigi)).toBe(false)
+  })
+
+  it('keeps genuinely different readings distinct across the long-vowel fold', () => {
+    // "toru" (取る, short o) vs "tooru"/"touru" (通る, long o) share a prefix
+    // and sit right next to the oo/ou fold - if that fold ever became
+    // aggressive enough to also collapse the short form in, these would
+    // wrongly match.
+    const toru = { jp: '取る', reading: 'とる' }
+    expect(matchesAnswer('tooru', toru)).toBe(false)
+    expect(matchesAnswer('touru', toru)).toBe(false)
   })
 })

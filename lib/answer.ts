@@ -57,10 +57,16 @@ function canonical(s: string): string {
     .trim()
     .toLowerCase()
     .replace(/\s+/g, '')
-    // Macron and trailing-hyphen long-o notation, folded to the same 'ou' spelling
-    // used elsewhere before the generic hyphen strip below discards the mark.
+    // NFC-normalize so a decomposed macron (o + combining U+0304 from some
+    // IMEs) folds the same as the precomposed 'ō' codepoint below.
+    .normalize('NFC')
+    // Macron long-o notation, folded to the same 'ou' spelling used elsewhere.
+    // A bare ASCII hyphen is NOT treated as a long-vowel mark - it's stripped
+    // as ordinary punctuation by the next line instead. Business Japanese has
+    // many honorific o- prefixes (o-negai, o-tsukaresama, ...) typed with a
+    // literal hyphen; folding those to 'ou' would wrongly reject them against
+    // a plain 'onegai'-style reading.
     .replace(/ō/g, 'ou')
-    .replace(/o-/g, 'ou')
     .replace(/[ー\-']/g, '')
     .replace(/shi/g, 'si')
     .replace(/chi/g, 'ti')
