@@ -69,6 +69,25 @@ describe('currentUnitGoal', () => {
     const g = currentUnitGoal(course, learned(['a0', 'a1', 'a2']))
     expect(g?.nextUnit).toBeNull()
   })
+
+  it('honors unlockPoint\'s rounding at a non-integer threshold', () => {
+    // A 5-card unit has unlockPoint(5) = ceil(5 * 0.75) = ceil(3.75) = 4, not
+    // 3 (floor) and not 3.75. This is the case the 4-card fixture above can't
+    // exercise, since ceil(4 * 0.75) = 3 lands on a whole number either way.
+    const roundingCourse: Course = {
+      ...course,
+      cards: [
+        ...Array.from({ length: 5 }, (_, i) => card(`c${i}`, 'u1')),
+        ...course.cards.filter((c) => c.unitId === 'u2'),
+      ],
+    }
+    const oneShort = currentUnitGoal(roundingCourse, learned(['c0', 'c1', 'c2']))
+    expect(oneShort?.unlockAt).toBe(4)
+    expect(oneShort?.toUnlock).toBe(1)
+
+    const justPast = currentUnitGoal(roundingCourse, learned(['c0', 'c1', 'c2', 'c3']))
+    expect(justPast?.unit.id).toBe('u2')
+  })
 })
 
 describe('boxDistribution', () => {
