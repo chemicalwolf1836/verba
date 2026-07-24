@@ -3,9 +3,11 @@
 import { useMemo, useReducer } from 'react'
 import Link from 'next/link'
 import { CardStage } from '@/components/CardStage'
+import { UnitUnlockRing } from '@/components/UnitUnlockRing'
 import { VoiceWarning } from '@/components/VoiceWarning'
 import { matchesAnswer } from '@/lib/answer'
 import { getCourse, DEFAULT_COURSE_ID, type Card } from '@/lib/courses'
+import { currentUnitGoal } from '@/lib/goals'
 import { nextCard, unlockedCards, type ProgressMap } from '@/lib/leitner'
 import { useProgress } from '@/lib/useProgress'
 
@@ -123,6 +125,7 @@ export default function StudyPage() {
   const [state, dispatch] = useReducer(reducer, initial)
 
   const pool = useMemo(() => unlockedCards(course, progress), [course, progress])
+  const goal = useMemo(() => currentUnitGoal(course, progress), [course, progress])
   const card: Card | null = useMemo(
     () => nextCard(pool, progress, state.history),
     [pool, progress, state.history],
@@ -197,6 +200,8 @@ export default function StudyPage() {
           Finish
         </Link>
       </header>
+
+      {goal && <UnitUnlockRing goal={goal} unitLabel={course.unitLabel} />}
 
       <VoiceWarning />
 
