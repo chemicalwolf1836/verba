@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { reducer, initial, isNewCard, derivePhase, type State } from './page'
+import { reducer, initial, isNewCard, derivePhase, isSessionEnded, type State } from './page'
 import type { ProgressMap } from '@/lib/leitner'
 
 function cardProgress(overrides: Partial<ProgressMap[string]> = {}): ProgressMap[string] {
@@ -14,6 +14,7 @@ describe('reducer', () => {
       history: [],
       introduced: [],
       tally: { studied: 0, got: 0, missed: 0 },
+      finished: false,
     })
   })
 
@@ -25,6 +26,24 @@ describe('reducer', () => {
   it('reveal moves phase to revealed without touching history or tally', () => {
     const next = reducer(initial, { type: 'reveal' })
     expect(next).toEqual({ ...initial, phase: 'revealed' })
+  })
+
+  it('reveal from a still-new/un-introduced card (phase "introduce") is a no-op', () => {
+    // A brand-new card is rendered as 'introduce' by derivePhase. If a future
+    // keyboard shortcut or swipe ever dispatched 'reveal' while a card is still in
+    // that state, it must not be able to skip straight to a gradeable 'revealed'
+    // phase - the introduce -> prompt -> reveal invariant must hold inside the
+    // reducer itself, not just via CardStage's JSX gating.
+    const stillIntroducing: State = { ...initial, phase: 'introduce' }
+    const next = reducer(stillIntroducing, { type: 'reveal' })
+    expect(next.phase).not.toBe('revealed')
+    expect(next).toEqual(stillIntroducing)
+  })
+
+  it('reveal from an already-revealed state is also a no-op', () => {
+    const revealed: State = { ...initial, phase: 'revealed' as const }
+    const next = reducer(revealed, { type: 'reveal' })
+    expect(next).toEqual(revealed)
   })
 
   it('continue returns to prompt, clears typed, and records the card as introduced', () => {
@@ -71,6 +90,61 @@ describe('reducer', () => {
     expect(state.tally.studied).toBe(50)
     expect(state.history).toHaveLength(50)
     expect(state.history[49]).toBe('card-49')
+  })
+
+  it('finish sets finished without touching the tally the summary will read', () => {
+    const revealed = { ...initial, phase: 'revealed' as const }
+    const midSession = reducer(revealed, { type: 'graded', correct: true, cardId: 'card-1' })
+    const finished = reducer(midSession, { type: 'finish' })
+    expect(finished).toEqual({ ...midSession, finished: true })
+    expect(finished.tally).toEqual({ studied: 1, got: 1, missed: 0 })
+  })
+
+  it('resume clears finished so studying can continue', () => {
+    const finished = reducer(initial, { type: 'finish' })
+    const resumed = reducer(finished, { type: 'resume' })
+    expect(resumed).toEqual({ ...initial, finished: false })
+  })
+})
+
+describe('isSessionEnded', () => {
+  it('is false for a mid-session state with a card still available', () => {
+    const midSession = reducer(initial, { type: 'graded', correct: true, cardId: 'card-1' })
+    expect(isSessionEnded(midSession, true)).toBe(false)
+  })
+
+  it('is true once finished is set and at least one card was studied', () => {
+    const midSession = reducer(initial, { type: 'graded', correct: true, cardId: 'card-1' })
+    const finished = reducer(midSession, { type: 'finish' })
+    expect(isSessionEnded(finished, true)).toBe(true)
+  })
+
+  it('does not claim a session happened when finishing with zero cards studied', () => {
+    // Tapping Finish immediately (before studying anything) must never produce a
+    // fake "session complete" summary - even if 'finish' were dispatched directly.
+    const finishedImmediately = reducer(initial, { type: 'finish' })
+    expect(finishedImmediately.tally.studied).toBe(0)
+    expect(isSessionEnded(finishedImmediately, true)).toBe(false)
+  })
+
+  it('is true when the queue naturally exhausts after real studying', () => {
+    const midSession = reducer(initial, { type: 'graded', correct: false, cardId: 'card-1' })
+    expect(isSessionEnded(midSession, false)).toBe(true)
+  })
+
+  it('stays false for an empty queue that never had a session (distinct from the summary)', () => {
+    // This is the "Nothing to study right now" case, not the end-of-session summary.
+    expect(isSessionEnded(initial, false)).toBe(false)
+  })
+
+  it('reflects the actual accumulated tally, not just a single grade', () => {
+    let state: State = initial
+    state = reducer(state, { type: 'graded', correct: true, cardId: 'card-1' })
+    state = reducer(state, { type: 'graded', correct: false, cardId: 'card-2' })
+    state = reducer(state, { type: 'graded', correct: true, cardId: 'card-3' })
+    const finished = reducer(state, { type: 'finish' })
+    expect(finished.tally).toEqual({ studied: 3, got: 2, missed: 1 })
+    expect(isSessionEnded(finished, true)).toBe(true)
   })
 })
 
