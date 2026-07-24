@@ -24,25 +24,32 @@ describe('reducer', () => {
   })
 
   it('reveal moves phase to revealed without touching history or tally', () => {
-    const next = reducer(initial, { type: 'reveal' })
+    const next = reducer(initial, { type: 'reveal', isNew: false })
     expect(next).toEqual({ ...initial, phase: 'revealed' })
   })
 
-  it('reveal from a still-new/un-introduced card (phase "introduce") is a no-op', () => {
-    // A brand-new card is rendered as 'introduce' by derivePhase. If a future
-    // keyboard shortcut or swipe ever dispatched 'reveal' while a card is still in
-    // that state, it must not be able to skip straight to a gradeable 'revealed'
-    // phase - the introduce -> prompt -> reveal invariant must hold inside the
-    // reducer itself, not just via CardStage's JSX gating.
-    const stillIntroducing: State = { ...initial, phase: 'introduce' }
-    const next = reducer(stillIntroducing, { type: 'reveal' })
+  it('reveal on a still-new/un-introduced card (isNew: true) is a no-op', () => {
+    // A brand-new card is internally still `phase: 'prompt'` - 'introduce' is only a
+    // derived rendering (derivePhase), never stored on state.phase. So `state.phase
+    // === 'prompt'` alone cannot distinguish a genuinely revealable prompt from a
+    // not-yet-introduced new card. If a future keyboard shortcut or swipe ever
+    // dispatched 'reveal' while a card is still new/un-introduced, it must not be
+    // able to skip straight to a gradeable 'revealed' phase - the introduce ->
+    // prompt -> reveal invariant must hold inside the reducer itself via the
+    // `isNew` flag, not just via CardStage's JSX gating.
+    const next = reducer(initial, { type: 'reveal', isNew: true })
     expect(next.phase).not.toBe('revealed')
-    expect(next).toEqual(stillIntroducing)
+    expect(next).toEqual(initial)
+  })
+
+  it('reveal on a seen/already-introduced card (isNew: false) does move to revealed', () => {
+    const next = reducer(initial, { type: 'reveal', isNew: false })
+    expect(next.phase).toBe('revealed')
   })
 
   it('reveal from an already-revealed state is also a no-op', () => {
     const revealed: State = { ...initial, phase: 'revealed' as const }
-    const next = reducer(revealed, { type: 'reveal' })
+    const next = reducer(revealed, { type: 'reveal', isNew: false })
     expect(next).toEqual(revealed)
   })
 

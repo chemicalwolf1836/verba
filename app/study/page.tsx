@@ -27,7 +27,7 @@ export type State = {
 }
 
 export type Action =
-  | { type: 'reveal' }
+  | { type: 'reveal'; isNew: boolean }
   | { type: 'type'; value: string }
   | { type: 'graded'; correct: boolean; cardId: string }
   | { type: 'continue'; cardId: string }
@@ -48,11 +48,15 @@ export function reducer(state: State, action: Action): State {
     case 'type':
       return { ...state, typed: action.value }
     case 'reveal':
-      // A card can only be revealed from the prompt phase - never from 'introduce'
-      // (a new/un-introduced card) or already 'revealed'. This makes the
-      // introduce -> prompt -> reveal invariant unrepresentable at the state-machine
-      // level, not just enforced by CardStage's JSX gating.
-      return state.phase === 'prompt' ? { ...state, phase: 'revealed' } : state
+      // `state.phase === 'prompt'` alone is NOT enough to guard this transition: a
+      // brand-new, not-yet-introduced card also has phase 'prompt' in internal state -
+      // 'introduce' is only a derived rendering (see derivePhase), never stored on
+      // state.phase. Without also checking `isNew`, a reveal dispatched for a card
+      // that hasn't gone through introduce -> continue yet would illegally skip
+      // straight to 'revealed'. Requiring `!action.isNew` here is what makes the
+      // introduce -> prompt -> reveal order a real state-machine invariant, not just
+      // something CardStage's JSX happens to enforce by omission.
+      return !action.isNew && state.phase === 'prompt' ? { ...state, phase: 'revealed' } : state
     case 'finish':
       return { ...state, finished: true }
     case 'resume':
@@ -202,7 +206,7 @@ export default function StudyPage() {
         typed={state.typed}
         matched={matchesAnswer(state.typed, card)}
         onType={(value) => dispatch({ type: 'type', value })}
-        onReveal={() => dispatch({ type: 'reveal' })}
+        onReveal={() => dispatch({ type: 'reveal', isNew })}
         onContinue={() => dispatch({ type: 'continue', cardId: card.id })}
         onGrade={(correct) => {
           gradeCard(card.id, correct)
