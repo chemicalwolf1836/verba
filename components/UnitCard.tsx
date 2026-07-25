@@ -24,7 +24,9 @@ export function UnitCard({
         {unitLabel} {unit.index} - {unit.theme}
       </p>
       <p className="mt-1 text-xs text-[var(--color-muted)]">
-        {locked ? 'Locked - finish the previous week first' : `${learned} of ${total} learned`}
+        {locked
+          ? `Locked - finish the previous ${unitLabel.toLowerCase()} first`
+          : `${learned} of ${total} learned`}
       </p>
     </div>
   )

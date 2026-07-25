@@ -82,4 +82,53 @@ describe('UnitDrill', () => {
     expect(container.textContent).toBe('')
     unmount()
   })
+
+  // UnitDrill has no unitLabel/course prop - it always reads
+  // getCourse(DEFAULT_COURSE_ID) internally, and DEFAULT_COURSE_ID is hardcoded to
+  // 'bjt' in lib/courses/index.ts. So the only way to exercise a non-Week course's
+  // label here is to mock the courses module itself; there is no prop to swap it
+  // through the way UnitCard's unitLabel prop allows. This is the limitation noted
+  // in the task brief - threading a real unitLabel prop into UnitDrill would need a
+  // component signature change beyond this fix's scope.
+  it('uses the course unitLabel - not a hardcoded "week" - for the locked hint and the back link', async () => {
+    const fakeCourse = {
+      id: 'fake',
+      name: 'Fake Course',
+      unitLabel: 'Set',
+      units: [
+        { id: 'u01', index: 1, theme: 'Intro' },
+        { id: 'u02', index: 2, theme: 'More' },
+      ],
+      cards: [
+        {
+          id: 'fake-vocab-1',
+          courseId: 'fake',
+          unitId: 'u01',
+          deck: 'vocab' as const,
+          jp: '一',
+          reading: 'いち',
+          meaning: 'one',
+          theme: 'Intro',
+          origin: 'prototype' as const,
+        },
+      ],
+    }
+
+    vi.doMock('@/lib/courses', () => ({
+      getCourse: (id: string) => (id === 'fake' ? fakeCourse : undefined),
+      DEFAULT_COURSE_ID: 'fake',
+    }))
+
+    try {
+      const { UnitDrill } = await import('./UnitDrill')
+      const { container, unmount } = render(<UnitDrill unitId="u02" />)
+      expect(container.textContent).toContain('Back to sets')
+      expect(container.textContent).toContain('Locked - finish the previous set first.')
+      expect(container.textContent).not.toContain('week')
+      unmount()
+    } finally {
+      vi.doUnmock('@/lib/courses')
+      vi.resetModules()
+    }
+  })
 })

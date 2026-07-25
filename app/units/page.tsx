@@ -16,7 +16,7 @@ export default function UnitsPage() {
       <Link href="/" className="text-sm underline">
         Back
       </Link>
-      <h1 className="text-2xl font-bold">Weeks</h1>
+      <h1 className="text-2xl font-bold">{course.unitLabel}s</h1>
       {course.units.map((unit) => {
         const cards = course.cards.filter((c) => c.unitId === unit.id)
         return (

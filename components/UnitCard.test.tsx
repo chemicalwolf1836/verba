@@ -53,4 +53,13 @@ describe('UnitCard', () => {
     expect(container.textContent).not.toContain('learned')
     unmount()
   })
+
+  it('uses the passed unitLabel in the locked-branch hint too, not a hardcoded "week"', () => {
+    const { container, unmount } = render(
+      <UnitCard unit={unit} unitLabel="Set" learned={0} total={8} locked={true} />,
+    )
+    expect(container.textContent).toContain('Locked - finish the previous set first')
+    expect(container.textContent).not.toContain('week')
+    unmount()
+  })
 })

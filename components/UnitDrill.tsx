@@ -25,14 +25,14 @@ export function UnitDrill({ unitId }: { unitId: string }) {
   return (
     <main className="mx-auto max-w-lg space-y-3 px-4 py-8">
       <Link href="/units" className="text-sm underline">
-        Back to weeks
+        Back to {course.unitLabel.toLowerCase()}s
       </Link>
       <h1 className="text-2xl font-bold">
         {course.unitLabel} {unit.index} - {unit.theme}
       </h1>
       {locked ? (
         <p className="text-sm text-[var(--color-muted)]">
-          Locked - finish the previous week first.
+          Locked - finish the previous {course.unitLabel.toLowerCase()} first.
         </p>
       ) : (
         <ul className="space-y-2">
