@@ -26,6 +26,13 @@ export default function Home() {
       >
         Browse weeks
       </Link>
+
+      <Link
+        href="/shadow"
+        className="block rounded-lg border border-[var(--color-line)] py-3 text-center"
+      >
+        Shadowing practice
+      </Link>
     </main>
   )
 }
