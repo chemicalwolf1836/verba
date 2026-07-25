@@ -4,7 +4,12 @@ const CACHE = 'bjt-trainer-v1'
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll(['/', '/study', '/units', '/shadow'])),
+    caches.open(CACHE).then((cache) =>
+      // Attempt each precache path independently - addAll is atomic and one
+      // unresolvable path (eg. a clean URL a non-Vercel host can't resolve)
+      // would sink the whole install, leaving the app with no offline shell at all.
+      Promise.allSettled(['/', '/study', '/units', '/shadow'].map((path) => cache.add(path))),
+    ),
   )
   self.skipWaiting()
 })
@@ -25,8 +30,12 @@ self.addEventListener('fetch', (event) => {
       if (hit) return hit
       return fetch(event.request)
         .then((res) => {
-          const copy = res.clone()
-          caches.open(CACHE).then((cache) => cache.put(event.request, copy))
+          // Only cache successful responses - an error response (404/500) cached
+          // here would otherwise be served from cache until the cache version bumps.
+          if (res.ok) {
+            const copy = res.clone()
+            caches.open(CACHE).then((cache) => cache.put(event.request, copy))
+          }
           return res
         })
         .catch(() => caches.match('/'))
