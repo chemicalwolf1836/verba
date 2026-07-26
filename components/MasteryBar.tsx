@@ -1,10 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { dailyRate, loadActivity, projectDays } from '@/lib/activity'
+import { dailyRate, projectDays } from '@/lib/activity'
 import { getCourse, DEFAULT_COURSE_ID } from '@/lib/courses'
 import { boxDistribution, masteredCount, notLearnedCount } from '@/lib/goals'
-import { useProgress } from '@/lib/useProgress'
+import { useActivity, useProgress } from '@/lib/useProgress'
 
 const SHADES = [
   'bg-[var(--color-line)]',
@@ -17,19 +16,20 @@ const SHADES = [
 export function MasteryBar() {
   const course = getCourse(DEFAULT_COURSE_ID)!
   const { progress } = useProgress()
-  const [projection, setProjection] = useState<number | null>(null)
+  const activity = useActivity()
 
   const dist = boxDistribution(course.cards, progress)
   const mastered = masteredCount(course.cards, progress)
   const total = course.cards.length
   const pct = Math.round((mastered / total) * 100)
 
-  useEffect(() => {
-    // Reads localStorage and the clock, so it must run after mount to avoid a
-    // hydration mismatch.
-    const remaining = notLearnedCount(course.cards, progress)
-    setProjection(projectDays(remaining, dailyRate(loadActivity(), Date.now())))
-  }, [course.cards, progress])
+  // useActivity's server snapshot is empty, same as useProgress's, so this is
+  // null on the server and on the first client render regardless of Date.now -
+  // only after useSyncExternalStore swaps in the real client snapshot (post
+  // hydration) can activity be non-empty and a projection appear. No manual
+  // useEffect needed to dodge a hydration mismatch.
+  const remaining = notLearnedCount(course.cards, progress)
+  const projection = projectDays(remaining, dailyRate(activity, Date.now()))
 
   return (
     <section className="rounded-xl border border-[var(--color-line)] bg-[var(--color-card)] p-4">
