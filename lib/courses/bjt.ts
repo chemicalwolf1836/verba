@@ -16,23 +16,7 @@
  *   Answer-matching must therefore accept either form - see lib/leitner answer checking.
  */
 
-export type Deck = 'vocab' | 'phrase';
-export type Origin = 'prototype' | 'drafted';
-
-export type Card = {
-  /** Stable, content-derived. Never positional - inserting words must not shift ids. */
-  id: string;
-  jp: string;
-  reading: string;
-  meaning: string;
-  exampleJp?: string;
-  exampleEn?: string;
-  /** 1-24 for the weekly plan; null for cards that sit outside it (phrases). */
-  week: number | null;
-  theme: string;
-  deck: Deck;
-  origin: Origin;
-};
+import type { Card, Course, Origin, Unit } from './types'
 
 /** [jp, reading, meaning, exampleJp, exampleEn, week, theme, origin] */
 type Row = [string, string, string, string, string, number, string, 'p' | 'd'];
@@ -300,42 +284,50 @@ const PHRASE_ROWS: PhraseRow[] = [
   ['何卒よろしくお願いいたします', 'nanitozo yoroshiku onegai itashimasu', 'I sincerely request your cooperation', 'p'],
 ];
 
-const expand = (o: 'p' | 'd'): Origin => (o === 'p' ? 'prototype' : 'drafted');
+const COURSE_ID = 'bjt'
 
-export const VOCAB_CARDS: Card[] = VOCAB_ROWS.map(
+const expand = (o: 'p' | 'd'): Origin => (o === 'p' ? 'prototype' : 'drafted')
+
+const unitIdFor = (week: number) => `w${String(week).padStart(2, '0')}`
+
+const VOCAB_CARDS: Card[] = VOCAB_ROWS.map(
   ([jp, reading, meaning, exampleJp, exampleEn, week, theme, origin]) => ({
-    id: `vocab-${jp}`,
+    id: `${COURSE_ID}-vocab-${jp}`,
+    courseId: COURSE_ID,
+    unitId: unitIdFor(week),
+    deck: 'vocab' as const,
     jp,
     reading,
     meaning,
     exampleJp,
     exampleEn,
-    week,
     theme,
-    deck: 'vocab' as const,
     origin: expand(origin),
   }),
-);
+)
 
-export const PHRASE_CARDS: Card[] = PHRASE_ROWS.map(([jp, reading, meaning, origin]) => ({
-  id: `phrase-${jp}`,
+const PHRASE_CARDS: Card[] = PHRASE_ROWS.map(([jp, reading, meaning, origin]) => ({
+  id: `${COURSE_ID}-phrase-${jp}`,
+  courseId: COURSE_ID,
+  unitId: '',
+  deck: 'phrase' as const,
   jp,
   reading,
   meaning,
-  week: null,
   theme: 'Business phrases',
-  deck: 'phrase' as const,
   origin: expand(origin),
-}));
+}))
 
-export const ALL_CARDS: Card[] = [...VOCAB_CARDS, ...PHRASE_CARDS];
+const UNITS: Unit[] = Array.from({ length: 24 }, (_, i) => {
+  const week = i + 1
+  const id = unitIdFor(week)
+  return { id, index: week, theme: VOCAB_CARDS.find((c) => c.unitId === id)?.theme ?? '' }
+})
 
-/** The 24 weeks of the study plan, in order, with their theme label. */
-export const WEEKS: { week: number; theme: string; count: number }[] = Array.from(
-  { length: 24 },
-  (_, i) => {
-    const week = i + 1;
-    const cards = VOCAB_CARDS.filter((c) => c.week === week);
-    return { week, theme: cards[0]?.theme ?? '', count: cards.length };
-  },
-);
+export const BJT_COURSE: Course = {
+  id: COURSE_ID,
+  name: 'BJT - Business Japanese',
+  unitLabel: 'Week',
+  units: UNITS,
+  cards: [...VOCAB_CARDS, ...PHRASE_CARDS],
+}

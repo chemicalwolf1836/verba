@@ -1,0 +1,35 @@
+'use client'
+
+import Link from 'next/link'
+import { UnitCard } from '@/components/UnitCard'
+import { getCourse, DEFAULT_COURSE_ID } from '@/lib/courses'
+import { isLearned, unlockedUnits } from '@/lib/leitner'
+import { useProgress } from '@/lib/useProgress'
+
+export default function UnitsPage() {
+  const course = getCourse(DEFAULT_COURSE_ID)!
+  const { progress } = useProgress()
+  const open = new Set(unlockedUnits(course, progress).map((u) => u.id))
+
+  return (
+    <main className="mx-auto max-w-lg space-y-3 px-4 py-8">
+      <Link href="/" className="text-sm underline">
+        Back
+      </Link>
+      <h1 className="text-2xl font-bold">{course.unitLabel}s</h1>
+      {course.units.map((unit) => {
+        const cards = course.cards.filter((c) => c.unitId === unit.id)
+        return (
+          <UnitCard
+            key={unit.id}
+            unit={unit}
+            unitLabel={course.unitLabel}
+            learned={cards.filter((c) => isLearned(progress[c.id])).length}
+            total={cards.length}
+            locked={!open.has(unit.id)}
+          />
+        )
+      })}
+    </main>
+  )
+}

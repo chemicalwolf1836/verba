@@ -1,0 +1,18 @@
+@import "tailwindcss";
+
+@theme {
+  --color-paper: #f4efe6;
+  --color-card: #fbf8f1;
+  --color-ink: #1a1714;
+  --color-line: #ddd4c3;
+  --color-muted: #8a8170;
+  --color-accent: #b5421f;
+  --color-green: #3d6b4a;
+  --font-sans: ui-sans-serif, system-ui, "Hiragino Sans", "Yu Gothic", sans-serif;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
