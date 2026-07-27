@@ -74,6 +74,8 @@ const card = (id: string, unitId: string): Card => ({
 const course: Course = {
   id: 'test',
   name: 'Test',
+  code: 'TST',
+  target: 'X',
   unitLabel: 'Unit',
   units: [
     { id: 'u1', index: 1, theme: 't' },
@@ -138,6 +140,8 @@ describe('unlockedCards', () => {
     const misordered: Course = {
       id: 'test2',
       name: 'Test2',
+      code: 'TS2',
+      target: 'X',
       unitLabel: 'Unit',
       units: [
         { id: 'u1', index: 1, theme: 't' },

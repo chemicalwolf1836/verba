@@ -20,7 +20,7 @@ export default function Home() {
         <span className="nxt">Bound for · {course.target}</span>
       </header>
 
-      <h1 className="sig-label text-2xl font-bold tracking-tight">Vocabulary Trainer</h1>
+      <h1 className="sig-label text-2xl font-bold tracking-tight">Verba</h1>
 
       <MasteryBar />
 

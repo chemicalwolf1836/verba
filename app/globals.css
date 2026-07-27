@@ -34,6 +34,14 @@ body {
   color: var(--color-ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  /* Center the app column vertically so short screens (home) sit in the middle of
+     a desktop viewport instead of stranded at the top. `safe` keeps tall screens
+     (a revealed study card, the 24-station browser) aligned to the top and fully
+     scrollable rather than clipped. */
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  justify-content: safe center;
 }
 
 /* Japanese glyphs get proportional metrics so a gothic kanji doesn't crowd the

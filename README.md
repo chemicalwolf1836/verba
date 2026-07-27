@@ -1,7 +1,9 @@
-# BJT Trainer
+# Verba
 
-Offline-capable Japanese vocabulary trainer for the BJT (Business Japanese
-Proficiency Test), targeting the J2 band around a score of 400.
+An offline-first vocabulary trainer for language exams - audio-first recall,
+Leitner spaced repetition, and a route-map progression, built to hold multiple
+languages and tests. The first course is the BJT (Business Japanese Proficiency
+Test), targeting the J2 band around a score of 400.
 
 ## How it works
 

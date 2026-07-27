@@ -38,6 +38,8 @@ const card = (id: string, unitId: string): Card => ({
 const course: Course = {
   id: 'test',
   name: 'Test',
+  code: 'TST',
+  target: 'X',
   unitLabel: 'Week',
   units: [
     { id: 'u1', index: 1, theme: 'Greetings' },

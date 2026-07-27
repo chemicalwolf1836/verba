@@ -7,13 +7,13 @@ export const dynamic = 'force-static'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'BJT Trainer',
-    short_name: 'BJT',
-    description: 'Offline Japanese vocabulary trainer for the BJT',
+    name: 'Verba',
+    short_name: 'Verba',
+    description: 'Offline-first vocabulary trainer for language exams. First course: BJT (Business Japanese).',
     start_url: '/',
     display: 'standalone',
-    background_color: '#f4efe6',
-    theme_color: '#b5421f',
+    background_color: '#f3f3f0',
+    theme_color: '#0a8ea0',
     icons: [
       { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
       { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },

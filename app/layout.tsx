@@ -3,8 +3,8 @@ import './globals.css'
 import { ServiceWorker } from '@/components/ServiceWorker'
 
 export const metadata: Metadata = {
-  title: 'BJT Trainer',
-  description: 'Offline Japanese vocabulary trainer for the BJT',
+  title: 'Verba',
+  description: 'Offline-first vocabulary trainer for language exams. First course: BJT (Business Japanese).',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

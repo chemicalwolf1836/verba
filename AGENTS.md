@@ -4,11 +4,13 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
-# BJT Trainer
+# Verba
 
-An offline-first Japanese vocabulary trainer. Audio-first recall, Leitner-box
-spaced repetition, 192 words across 24 weekly units. Static export, deployed to
-Vercel.
+An offline-first vocabulary trainer for language exams. Audio-first recall,
+Leitner-box spaced repetition, a route-map progression, built to hold multiple
+courses (see "Multiple courses" below). Static export, deployed to Vercel. The
+first shipped course is the BJT (Business Japanese): 192 words across 24 weekly
+units.
 
 Design spec: `docs/superpowers/specs/2026-07-22-bjt-trainer-design.md`
 Implementation plan: `docs/superpowers/plans/2026-07-22-bjt-trainer.md`
