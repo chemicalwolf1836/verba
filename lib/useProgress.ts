@@ -1,7 +1,9 @@
 'use client'
 
 import { useCallback, useSyncExternalStore } from 'react'
+import { loadActiveCourseId, saveActiveCourseId, subscribeActiveCourse } from './activeCourse'
 import { loadActivity, recordGrade, subscribeActivity, type ActivityLog } from './activity'
+import { DEFAULT_COURSE_ID, getCourse, type Course } from './courses'
 import { grade, type ProgressMap } from './leitner'
 import { loadProgress, saveProgress, subscribeProgress } from './progress'
 
@@ -74,4 +76,22 @@ export function useActivity(): ActivityLog {
     getActivitySnapshot,
     getServerActivitySnapshot,
   )
+}
+
+/**
+ * The active course, reactive to the picker. The snapshot is the course *id* (a
+ * stable string, so useSyncExternalStore never loops), resolved to a Course
+ * afterwards. Server/first-client render is always the default course, keeping
+ * static export hydration-safe; if the stored course differs it settles after
+ * mount, exactly like useProgress.
+ */
+export function useActiveCourse(): { course: Course; courseId: string; setCourse: (id: string) => void } {
+  const courseId = useSyncExternalStore(
+    subscribeActiveCourse,
+    loadActiveCourseId,
+    () => DEFAULT_COURSE_ID,
+  )
+  const course = getCourse(courseId) ?? getCourse(DEFAULT_COURSE_ID)!
+  const setCourse = useCallback((id: string) => saveActiveCourseId(id), [])
+  return { course, courseId: course.id, setCourse }
 }

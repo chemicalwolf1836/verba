@@ -43,7 +43,7 @@ describe('UnitsPage', () => {
 
     const links = Array.from(container.querySelectorAll('a[href^="/units/"]'))
     expect(links).toHaveLength(1)
-    expect(links[0].getAttribute('href')).toBe('/units/w01')
+    expect(links[0].getAttribute('href')).toBe('/units/bjt-w01')
 
     expect(container.textContent).toContain('Locked - finish the previous week first')
     expect(container.textContent).toContain(`${course.unitLabel} 2`)
@@ -53,7 +53,7 @@ describe('UnitsPage', () => {
   it('renders per-unit progress against real localStorage progress, not a mock', async () => {
     const { saveProgress } = await import('@/lib/progress')
     const course = getCourse(DEFAULT_COURSE_ID)!
-    const w1cards = course.cards.filter((c) => c.unitId === 'w01')
+    const w1cards = course.cards.filter((c) => c.unitId === 'bjt-w01')
     // Learn 3 of week 1's 8 cards (box >= 2 counts as learned).
     const progress: ProgressMap = Object.fromEntries(
       w1cards.slice(0, 3).map((c) => [c.id, box(2)]),
@@ -70,7 +70,7 @@ describe('UnitsPage', () => {
   it('unlocks week 2 - and makes it a real link - once week 1 crosses its unlock threshold', async () => {
     const { saveProgress } = await import('@/lib/progress')
     const course = getCourse(DEFAULT_COURSE_ID)!
-    const w1cards = course.cards.filter((c) => c.unitId === 'w01')
+    const w1cards = course.cards.filter((c) => c.unitId === 'bjt-w01')
     // unlockPoint(8) = ceil(8 * 0.75) = 6.
     const progress: ProgressMap = Object.fromEntries(
       w1cards.slice(0, 6).map((c) => [c.id, box(2)]),
@@ -83,9 +83,9 @@ describe('UnitsPage', () => {
     const hrefs = Array.from(container.querySelectorAll('a[href^="/units/"]')).map((a) =>
       a.getAttribute('href'),
     )
-    expect(hrefs).toContain('/units/w01')
-    expect(hrefs).toContain('/units/w02')
-    expect(hrefs).not.toContain('/units/w03')
+    expect(hrefs).toContain('/units/bjt-w01')
+    expect(hrefs).toContain('/units/bjt-w02')
+    expect(hrefs).not.toContain('/units/bjt-w03')
     unmount()
   })
 

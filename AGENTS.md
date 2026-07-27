@@ -71,15 +71,32 @@ a box comparison in a component - use the exported predicates.
 
 ## Storage
 
-Two `localStorage` keys, deliberately not course-prefixed, because card ids
-already carry their course and one flat map holds every course:
+Three `localStorage` keys. Progress and activity are deliberately not
+course-prefixed, because card ids already carry their course and one flat map
+holds every course's progress at once:
 
 - `trainer.progress.v1`
 - `trainer.activity.v1`
+- `trainer.course` - which course the user is studying (the active-course store)
 
 `localStorage` does not exist during server render. Read it via
 `useSyncExternalStore` with a server snapshot, never in a component body -
 that is a hydration mismatch.
+
+## Multiple courses
+
+The app is built to hold more than one course (language or test). `lib/courses`
+is a registry: `COURSES` is an array, `getCourse` / `findUnit` / `allUnits` look
+across it. To add a course, add a `Course` data file and one entry to `COURSES` -
+the scheduler, goals, routes, and PWA are all course-agnostic and need no change.
+
+- **Unit ids are course-prefixed** (`bjt-w01`), like card ids, so two courses
+  never collide on `/units/[unit]`. `unitIdFor` in each course file owns this.
+- **The active course** is read through `useActiveCourse()` on the home, study,
+  and unit-list screens. The unit drill instead derives its course from the URL
+  (`findUnit(unitId)`), so a link to any course's unit resolves correctly.
+- **`CoursePicker` renders nothing while only one course is registered** - it
+  appears automatically once a second course exists.
 
 ## Conventions
 
