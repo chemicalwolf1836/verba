@@ -26,6 +26,11 @@ export type Card = {
 export type Course = {
   id: string
   name: string
+  /** Short badge shown in the station roundel, e.g. 'BJT', 'N2', 'HSK'. */
+  code: string
+  /** The goal this course rides toward - a score, level, or band. Rendered as
+   *  the line's destination ("Bound for · 400" / "Bound for · N2"). Per test. */
+  target: string
   /** Renders as "Week 5" or "Set 5" depending on the course. */
   unitLabel: string
   units: Unit[]

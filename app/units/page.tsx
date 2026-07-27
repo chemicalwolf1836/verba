@@ -12,11 +12,14 @@ export default function UnitsPage() {
   const open = new Set(unlockedUnits(course, progress).map((u) => u.id))
 
   return (
-    <main className="mx-auto max-w-lg space-y-3 px-4 py-8">
-      <Link href="/" className="text-sm underline">
-        Back
+    <main className="mx-auto max-w-lg px-4 py-8">
+      <Link href="/" className="sig-label text-xs text-[var(--color-muted)]">
+        ◂ Back
       </Link>
-      <h1 className="text-2xl font-bold">{course.unitLabel}s</h1>
+      <div className="board mb-5 mt-3">
+        <span className="lab">The line</span>
+        <span className="nxt">{course.units.length} stations</span>
+      </div>
       {course.units.map((unit) => {
         const cards = course.cards.filter((c) => c.unitId === unit.id)
         return (

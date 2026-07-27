@@ -5,12 +5,14 @@ import { getCourse, DEFAULT_COURSE_ID } from '@/lib/courses'
 import { boxDistribution, masteredCount, notLearnedCount } from '@/lib/goals'
 import { useActivity, useProgress } from '@/lib/useProgress'
 
+// Box 1 (unlearned) is the pale, un-ridden track; each box up the line moves
+// from amber (in progress) toward the deep teal terminus of box 5 (mastered).
 const SHADES = [
   'bg-[var(--color-line)]',
-  'bg-amber-300',
-  'bg-amber-500',
+  'bg-[var(--color-here)]/55',
+  'bg-[var(--color-here)]',
   'bg-[var(--color-accent)]',
-  'bg-[var(--color-green)]',
+  'bg-[var(--color-accent-deep)]',
 ]
 
 export function MasteryBar() {
@@ -33,7 +35,10 @@ export function MasteryBar() {
 
   return (
     <section className="rounded-xl border border-[var(--color-line)] bg-[var(--color-card)] p-4">
-      <p className="text-sm font-bold">Course progress - {course.name}</p>
+      <div className="flex items-baseline justify-between">
+        <p className="sig-label text-xs text-[var(--color-muted)]">Course progress</p>
+        <p className="text-xs text-[var(--color-muted)]">{course.name}</p>
+      </div>
 
       <div className="mt-3 flex h-3 overflow-hidden rounded-full" aria-hidden>
         {[4, 3, 2, 1, 0].map((box) => (
@@ -46,7 +51,8 @@ export function MasteryBar() {
       </div>
 
       <p className="mt-3 text-sm">
-        {mastered} of {total} words mastered - {pct}%
+        <span className="text-lg font-bold tabular-nums">{mastered}</span> of {total} words mastered
+        {' '}- {pct}%
       </p>
       {projection !== null && (
         <p className="mt-1 text-xs text-[var(--color-muted)]">
