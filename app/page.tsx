@@ -1,12 +1,17 @@
+'use client'
+
 import Link from 'next/link'
+import { CoursePicker } from '@/components/CoursePicker'
 import { MasteryBar } from '@/components/MasteryBar'
-import { getCourse, DEFAULT_COURSE_ID } from '@/lib/courses'
+import { useActiveCourse } from '@/lib/useProgress'
 
 export default function Home() {
-  const course = getCourse(DEFAULT_COURSE_ID)!
+  const { course } = useActiveCourse()
 
   return (
     <main className="mx-auto max-w-lg space-y-5 px-4 py-8">
+      <CoursePicker />
+
       <header className="board">
         <span className="roundel on-board" style={{ ['--rd' as string]: 'var(--color-here)' }}>
           {course.code}

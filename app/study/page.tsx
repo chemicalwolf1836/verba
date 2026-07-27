@@ -6,10 +6,10 @@ import { CardStage } from '@/components/CardStage'
 import { UnitUnlockRing } from '@/components/UnitUnlockRing'
 import { VoiceWarning } from '@/components/VoiceWarning'
 import { matchesAnswer } from '@/lib/answer'
-import { getCourse, DEFAULT_COURSE_ID, type Card } from '@/lib/courses'
+import { type Card } from '@/lib/courses'
 import { currentUnitGoal } from '@/lib/goals'
 import { nextCard, unlockedCards, type ProgressMap } from '@/lib/leitner'
-import { useProgress } from '@/lib/useProgress'
+import { useActiveCourse, useProgress } from '@/lib/useProgress'
 
 export type Phase = 'introduce' | 'prompt' | 'revealed'
 
@@ -120,7 +120,7 @@ export function isSessionEnded(state: State, hasCard: boolean): boolean {
 }
 
 export default function StudyPage() {
-  const course = getCourse(DEFAULT_COURSE_ID)!
+  const { course } = useActiveCourse()
   const { progress, gradeCard } = useProgress()
   const [state, dispatch] = useReducer(reducer, initial)
 

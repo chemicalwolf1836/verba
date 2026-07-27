@@ -2,12 +2,11 @@
 
 import Link from 'next/link'
 import { UnitCard } from '@/components/UnitCard'
-import { getCourse, DEFAULT_COURSE_ID } from '@/lib/courses'
 import { isLearned, unlockedUnits } from '@/lib/leitner'
-import { useProgress } from '@/lib/useProgress'
+import { useActiveCourse, useProgress } from '@/lib/useProgress'
 
 export default function UnitsPage() {
-  const course = getCourse(DEFAULT_COURSE_ID)!
+  const { course } = useActiveCourse()
   const { progress } = useProgress()
   const open = new Set(unlockedUnits(course, progress).map((u) => u.id))
 

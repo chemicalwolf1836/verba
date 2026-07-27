@@ -39,9 +39,9 @@ describe('UnitDrill', () => {
   it('shows week 1 - always unlocked - even with no progress saved', async () => {
     const { UnitDrill } = await import('./UnitDrill')
     const course = getCourse(DEFAULT_COURSE_ID)!
-    const w1 = course.cards.filter((c) => c.unitId === 'w01')
+    const w1 = course.cards.filter((c) => c.unitId === 'bjt-w01')
 
-    const { container, unmount } = render(<UnitDrill unitId="w01" />)
+    const { container, unmount } = render(<UnitDrill unitId="bjt-w01" />)
     expect(container.textContent).not.toContain('Locked')
     for (const c of w1) expect(container.textContent).toContain(c.jp)
     unmount()
@@ -50,9 +50,9 @@ describe('UnitDrill', () => {
   it('refuses to drill week 2 while week 1 has not crossed unlockedUnits\' threshold - a direct URL visit must not leak the cards', async () => {
     const { UnitDrill } = await import('./UnitDrill')
     const course = getCourse(DEFAULT_COURSE_ID)!
-    const w2 = course.cards.filter((c) => c.unitId === 'w02')
+    const w2 = course.cards.filter((c) => c.unitId === 'bjt-w02')
 
-    const { container, unmount } = render(<UnitDrill unitId="w02" />)
+    const { container, unmount } = render(<UnitDrill unitId="bjt-w02" />)
     expect(container.textContent).toContain('Locked - finish the previous week first.')
     for (const c of w2) expect(container.textContent).not.toContain(c.jp)
     unmount()
@@ -61,7 +61,7 @@ describe('UnitDrill', () => {
   it('shows week 2 once week 1 crosses unlockedUnits\' threshold - the same gate the browser uses, not a locally recomputed one', async () => {
     const { saveProgress } = await import('@/lib/progress')
     const course = getCourse(DEFAULT_COURSE_ID)!
-    const w1cards = course.cards.filter((c) => c.unitId === 'w01')
+    const w1cards = course.cards.filter((c) => c.unitId === 'bjt-w01')
     // unlockPoint(8) = ceil(8 * 0.75) = 6.
     const progress: ProgressMap = Object.fromEntries(
       w1cards.slice(0, 6).map((c) => [c.id, box(2)]),
@@ -69,8 +69,8 @@ describe('UnitDrill', () => {
     saveProgress(progress)
 
     const { UnitDrill } = await import('./UnitDrill')
-    const w2 = course.cards.filter((c) => c.unitId === 'w02')
-    const { container, unmount } = render(<UnitDrill unitId="w02" />)
+    const w2 = course.cards.filter((c) => c.unitId === 'bjt-w02')
+    const { container, unmount } = render(<UnitDrill unitId="bjt-w02" />)
     expect(container.textContent).not.toContain('Locked')
     for (const c of w2) expect(container.textContent).toContain(c.jp)
     unmount()
@@ -83,27 +83,24 @@ describe('UnitDrill', () => {
     unmount()
   })
 
-  // UnitDrill has no unitLabel/course prop - it always reads
-  // getCourse(DEFAULT_COURSE_ID) internally, and DEFAULT_COURSE_ID is hardcoded to
-  // 'bjt' in lib/courses/index.ts. So the only way to exercise a non-Week course's
-  // label here is to mock the courses module itself; there is no prop to swap it
-  // through the way UnitCard's unitLabel prop allows. This is the limitation noted
-  // in the task brief - threading a real unitLabel prop into UnitDrill would need a
-  // component signature change beyond this fix's scope.
+  // UnitDrill now resolves its course from the unit id via findUnit, so a
+  // non-Week course can be exercised by mocking findUnit to return a fake course.
   it('uses the course unitLabel - not a hardcoded "week" - for the locked hint and the back link', async () => {
     const fakeCourse = {
       id: 'fake',
       name: 'Fake Course',
+      code: 'FAKE',
+      target: 'X',
       unitLabel: 'Set',
       units: [
-        { id: 'u01', index: 1, theme: 'Intro' },
-        { id: 'u02', index: 2, theme: 'More' },
+        { id: 'fake-u01', index: 1, theme: 'Intro' },
+        { id: 'fake-u02', index: 2, theme: 'More' },
       ],
       cards: [
         {
           id: 'fake-vocab-1',
           courseId: 'fake',
-          unitId: 'u01',
+          unitId: 'fake-u01',
           deck: 'vocab' as const,
           jp: '一',
           reading: 'いち',
@@ -115,13 +112,15 @@ describe('UnitDrill', () => {
     }
 
     vi.doMock('@/lib/courses', () => ({
-      getCourse: (id: string) => (id === 'fake' ? fakeCourse : undefined),
-      DEFAULT_COURSE_ID: 'fake',
+      findUnit: (unitId: string) => {
+        const unit = fakeCourse.units.find((u) => u.id === unitId)
+        return unit ? { course: fakeCourse, unit } : undefined
+      },
     }))
 
     try {
       const { UnitDrill } = await import('./UnitDrill')
-      const { container, unmount } = render(<UnitDrill unitId="u02" />)
+      const { container, unmount } = render(<UnitDrill unitId="fake-u02" />)
       expect(container.textContent).toContain('Back to sets')
       expect(container.textContent).toContain('Locked - finish the previous set first.')
       expect(container.textContent).not.toContain('week')

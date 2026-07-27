@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { getCourse, DEFAULT_COURSE_ID } from '@/lib/courses'
+import { findUnit } from '@/lib/courses'
 import { unlockedUnits } from '@/lib/leitner'
 import { useProgress } from '@/lib/useProgress'
 
@@ -13,11 +13,13 @@ import { useProgress } from '@/lib/useProgress'
  * locked unit's static page from ever showing its cards.
  */
 export function UnitDrill({ unitId }: { unitId: string }) {
-  const course = getCourse(DEFAULT_COURSE_ID)!
-  const unit = course.units.find((u) => u.id === unitId)
+  // The course comes from the unit id (which is course-prefixed), not from the
+  // active course - so a direct link to any course's unit resolves correctly.
+  const found = findUnit(unitId)
   const { progress } = useProgress()
 
-  if (!unit) return null
+  if (!found) return null
+  const { course, unit } = found
 
   const locked = !unlockedUnits(course, progress).some((u) => u.id === unitId)
   const cards = course.cards.filter((c) => c.unitId === unitId)

@@ -288,7 +288,10 @@ const COURSE_ID = 'bjt'
 
 const expand = (o: 'p' | 'd'): Origin => (o === 'p' ? 'prototype' : 'drafted')
 
-const unitIdFor = (week: number) => `w${String(week).padStart(2, '0')}`
+// Course-prefixed so two courses can't both claim '/units/w01'. Card ids are
+// prefixed the same way; progress is keyed by card id, so this never touches
+// saved progress.
+const unitIdFor = (week: number) => `${COURSE_ID}-w${String(week).padStart(2, '0')}`
 
 const VOCAB_CARDS: Card[] = VOCAB_ROWS.map(
   ([jp, reading, meaning, exampleJp, exampleEn, week, theme, origin]) => ({
