@@ -1,18 +1,107 @@
 @import "tailwindcss";
 
+/* Self-hosted, so the signage type ships offline with the app - no font CDN at
+   runtime. Barlow is a grotesque with a transit-signage lineage; Barlow Semi
+   Condensed handles station numbers and board labels. Japanese glyphs fall
+   through Barlow (which has none) to the platform gothic stack below. */
+@font-face { font-family: "Barlow"; src: url(/fonts/barlow-400.woff2) format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Barlow"; src: url(/fonts/barlow-600.woff2) format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "Barlow"; src: url(/fonts/barlow-700.woff2) format("woff2"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Barlow SC"; src: url(/fonts/barlowsc-600.woff2) format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "Barlow SC"; src: url(/fonts/barlowsc-700.woff2) format("woff2"); font-weight: 700; font-display: swap; }
+
 @theme {
-  --color-paper: #f4efe6;
-  --color-card: #fbf8f1;
-  --color-ink: #1a1714;
-  --color-line: #ddd4c3;
-  --color-muted: #8a8170;
-  --color-accent: #b5421f;
-  --color-green: #3d6b4a;
-  --font-sans: ui-sans-serif, system-ui, "Hiragino Sans", "Yu Gothic", sans-serif;
+  /* Rosen-zu (route-map) palette. Daytime platform: warm-neutral ground, sumi
+     ink, one confident transit teal, amber only for "you are here". */
+  --color-paper: #f3f3f0;   /* platform ground */
+  --color-card: #ffffff;
+  --color-ink: #1b1c1e;
+  --color-line: #e2e2db;    /* neutral hairline (kept: components border on this) */
+  --color-muted: #76756e;
+  --color-accent: #0a8ea0;  /* transit teal - primary line, play, CTAs */
+  --color-accent-deep: #076f7d;
+  --color-here: #e8992f;    /* amber - current position */
+  --color-green: #0f7a4d;   /* success / got it */
+  --color-board: #1b1c1e;   /* dark signage board */
+  --color-board-ink: #f3f3f0;
+
+  --font-sans: "Barlow", ui-sans-serif, system-ui, "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic", "BIZ UDPGothic", "Noto Sans JP", sans-serif;
+  --font-signage: "Barlow SC", "Barlow", ui-sans-serif, sans-serif;
 }
 
 body {
   background: var(--color-paper);
   color: var(--color-ink);
   font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Japanese glyphs get proportional metrics so a gothic kanji doesn't crowd the
+   tight Barlow around it. */
+.jp { font-feature-settings: "palt" 1; }
+
+/* ---- transit signage primitives ---- */
+
+/* Dark station board, like a platform sign */
+.board {
+  background: var(--color-board);
+  color: var(--color-board-ink);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+}
+.board .lab {
+  font-family: var(--font-signage);
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  font-size: 13px;
+}
+.board .nxt {
+  margin-left: auto;
+  font-family: var(--font-signage);
+  font-size: 11px;
+  letter-spacing: .1em;
+  color: #b9b9b2;
+  text-transform: uppercase;
+}
+
+/* Numbered line roundel */
+.roundel {
+  flex: none;
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  border: 2.5px solid var(--rd, var(--color-accent));
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-signage);
+  font-weight: 700;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  background: var(--color-card);
+  color: var(--color-ink);
+}
+.roundel.on-board { background: transparent; color: #fff; }
+
+/* Signage label utility */
+.sig-label {
+  font-family: var(--font-signage);
+  font-weight: 600;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+/* Line segment between stations */
+.seg { height: 4px; border-radius: 2px; background: var(--color-accent); }
+.seg.pending { background: var(--color-line); }
+
+/* Focus visibility (quality floor) */
+a:focus-visible, button:focus-visible, input:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: .001ms !important; transition-duration: .001ms !important; }
 }

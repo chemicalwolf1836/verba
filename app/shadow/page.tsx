@@ -58,14 +58,18 @@ export default function ShadowPage() {
         <span>
           Sentence {index + 1} / {SHADOW_LINES.length}
         </span>
-        <Link href="/" className="underline" onClick={() => cancel()}>
+        <Link
+          href="/"
+          className="sig-label rounded-full border border-[var(--color-line)] px-3 py-1 text-[11px]"
+          onClick={() => cancel()}
+        >
           Finish
         </Link>
       </div>
 
       <VoiceWarning />
 
-      <p className="text-center text-sm font-bold">
+      <p className="sig-label text-center text-sm text-[var(--color-accent)]">
         {phase === 'listen'
           ? 'Listen carefully...'
           : phase === 'speak'
@@ -73,8 +77,10 @@ export default function ShadowPage() {
             : 'Press start when ready'}
       </p>
 
-      <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-card)] p-6 text-center">
-        <p className={`text-xl font-bold ${showText ? '' : 'blur-md select-none'}`}>
+      <div className="overflow-hidden rounded-2xl border border-[var(--color-line)] bg-[var(--color-card)]">
+        <div className="h-1.5 w-full bg-[var(--color-accent)]" aria-hidden />
+        <div className="p-6 text-center">
+        <p className={`jp text-2xl font-bold leading-relaxed ${showText ? '' : 'blur-md select-none'}`}>
           {line.jp}
         </p>
         {showText && (
@@ -83,6 +89,7 @@ export default function ShadowPage() {
         <p className="mt-3 border-t border-dashed border-[var(--color-line)] pt-3 text-sm text-[var(--color-muted)]">
           {line.en}
         </p>
+        </div>
       </div>
 
       <div className="flex gap-2">
@@ -96,7 +103,11 @@ export default function ShadowPage() {
               setRunning(true)
             }
           }}
-          className="flex-1 rounded-lg bg-[var(--color-ink)] py-3 font-bold text-[var(--color-card)]"
+          className={`flex-1 rounded-xl py-3 font-bold ${
+            running
+              ? 'bg-[var(--color-ink)] text-white'
+              : 'bg-[var(--color-accent)] text-white'
+          }`}
         >
           {running ? 'Pause' : 'Start'}
         </button>

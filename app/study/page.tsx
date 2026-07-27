@@ -141,27 +141,34 @@ export default function StudyPage() {
   if (sessionEnded) {
     const { studied, got } = state.tally
     return (
-      <main className="mx-auto max-w-lg px-4 py-8 text-center">
-        <h1 className="text-xl font-bold">Session complete</h1>
+      <main className="mx-auto max-w-lg px-4 py-12 text-center">
+        <p className="sig-label text-xs text-[var(--color-muted)]">Terminus</p>
+        <span className="mx-auto mt-4 grid h-14 w-14 place-items-center rounded-full bg-[var(--color-accent)] text-2xl text-white">
+          ✓
+        </span>
+        <h1 className="mt-4 text-2xl font-bold">Session complete</h1>
         <p className="mt-3 text-lg">
           You studied {studied} card{studied === 1 ? '' : 's'}.
         </p>
-        <p className="mt-1 text-[var(--color-muted)]">
+        <p className="mt-1 tabular-nums text-[var(--color-muted)]">
           Got {got} of {studied}.
         </p>
-        <div className="mt-6 flex justify-center gap-4">
+        <div className="mt-7 flex justify-center gap-3">
           {card && (
             // Only offered when a card is actually waiting - if the queue itself is
             // empty there is nothing to resume into, and offering the button would
             // just redisplay this same summary.
             <button
               onClick={() => dispatch({ type: 'resume' })}
-              className="rounded-lg border border-[var(--color-line)] px-4 py-2 underline"
+              className="rounded-xl bg-[var(--color-accent)] px-5 py-2.5 font-bold text-white"
             >
-              Keep studying
+              Keep studying ▸
             </button>
           )}
-          <Link href="/" className="inline-block underline">
+          <Link
+            href="/"
+            className="rounded-xl border border-[var(--color-line)] bg-[var(--color-card)] px-5 py-2.5 font-semibold"
+          >
             Back home
           </Link>
         </div>
@@ -171,9 +178,13 @@ export default function StudyPage() {
 
   if (!card) {
     return (
-      <main className="mx-auto max-w-lg px-4 py-8 text-center">
-        <p className="text-lg">Nothing to study right now.</p>
-        <Link href="/" className="mt-4 inline-block underline">
+      <main className="mx-auto max-w-lg px-4 py-12 text-center">
+        <p className="sig-label text-xs text-[var(--color-muted)]">Out of service</p>
+        <p className="mt-3 text-lg">Nothing to study right now.</p>
+        <Link
+          href="/"
+          className="mt-5 inline-block rounded-xl border border-[var(--color-line)] bg-[var(--color-card)] px-5 py-2.5 font-semibold"
+        >
           Back home
         </Link>
       </main>
@@ -183,12 +194,12 @@ export default function StudyPage() {
   return (
     <main className="mx-auto max-w-lg px-4 py-6">
       <header className="mb-4 flex items-center justify-between text-sm text-[var(--color-muted)]">
-        <span>
+        <span className="tabular-nums">
           {state.tally.studied} studied · {state.tally.got} got
         </span>
         <Link
           href="/"
-          className="underline"
+          className="sig-label rounded-full border border-[var(--color-line)] px-3 py-1 text-[11px]"
           onClick={(e) => {
             // Zero cards studied: Finish just navigates home like a plain link -
             // no fake "session complete" screen for a session that never happened.

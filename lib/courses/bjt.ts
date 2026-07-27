@@ -327,6 +327,8 @@ const UNITS: Unit[] = Array.from({ length: 24 }, (_, i) => {
 export const BJT_COURSE: Course = {
   id: COURSE_ID,
   name: 'BJT - Business Japanese',
+  code: 'BJT',
+  target: '400',
   unitLabel: 'Week',
   units: UNITS,
   cards: [...VOCAB_CARDS, ...PHRASE_CARDS],
