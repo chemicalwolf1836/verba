@@ -9,7 +9,7 @@ export type ActivityLog = Record<string, number>
 
 const DAY = 86_400_000
 const WINDOW_DAYS = 7
-const RETAIN_DAYS = 30
+const RETAIN_DAYS = 98
 
 const listeners = new Set<() => void>()
 
@@ -89,4 +89,50 @@ export function dailyRate(log: ActivityLog, now: number): number {
 export function projectDays(remaining: number, rate: number): number | null {
   if (rate <= 0 || remaining <= 0) return null
   return Math.ceil(remaining / rate)
+}
+
+export type HeatCell = { date: string; count: number; level: 0 | 1 | 2 | 3 }
+
+/** Level 1/2/3 lower bounds for the heatmap intensity buckets. */
+export const HEAT_LEVELS = [1, 5, 15] as const
+
+function heatLevel(count: number): 0 | 1 | 2 | 3 {
+  if (count < HEAT_LEVELS[0]) return 0
+  if (count < HEAT_LEVELS[1]) return 1
+  if (count < HEAT_LEVELS[2]) return 2
+  return 3
+}
+
+/**
+ * Consecutive days with at least one graded card, ending today or yesterday.
+ * Today not-yet-studied does not break a live run - it only breaks after a full
+ * missed day, so the streak still reads while today is in progress.
+ */
+export function studyStreak(log: ActivityLog, now: number): number {
+  let streak = 0
+  let cursor = (log[dayKey(now)] ?? 0) > 0 ? now : now - DAY
+  while ((log[dayKey(cursor)] ?? 0) > 0) {
+    streak += 1
+    cursor -= DAY
+  }
+  return streak
+}
+
+/**
+ * weeks*7 cells ending today, oldest first, so a 7-row grid reads left-to-right
+ * by week. The last cell is always today.
+ */
+export function heatmapCells(log: ActivityLog, now: number, weeks: number): HeatCell[] {
+  const days = weeks * 7
+  const cells: HeatCell[] = []
+  for (let i = days - 1; i >= 0; i--) {
+    const date = dayKey(now - i * DAY)
+    const count = log[date] ?? 0
+    cells.push({ date, count, level: heatLevel(count) })
+  }
+  return cells
+}
+
+export function totalStudyDays(log: ActivityLog): number {
+  return Object.values(log).filter((n) => n > 0).length
 }
