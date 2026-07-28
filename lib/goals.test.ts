@@ -121,23 +121,31 @@ const boxWithLastSeen = (n: CardProgress['box'], lastSeen = 0): CardProgress => 
 
 describe('weakestCards', () => {
   it('orders by box ascending, then by lastSeen ascending', () => {
+    // Input order and each single key deliberately disagree with the final order,
+    // so a sort using only box, or only lastSeen, or relying on input order, fails.
     const cards = [
-      { id: 'c-strong' } as never,
-      { id: 'c-weak-stale' } as never,
-      { id: 'c-weak-fresh' } as never,
+      { id: 'a-box2-fresh' } as never,   // box 2, high lastSeen
+      { id: 'b-box1-stale-late' } as never, // box 1, high lastSeen, listed before its box-mate
+      { id: 'c-box1-stale-early' } as never, // box 1, low lastSeen
     ]
     const progress: ProgressMap = {
-      'c-strong': boxWithLastSeen(5, 100),
-      'c-weak-stale': boxWithLastSeen(1, 10),
-      'c-weak-fresh': boxWithLastSeen(1, 99),
+      'a-box2-fresh': boxWithLastSeen(2, 5),
+      'b-box1-stale-late': boxWithLastSeen(1, 99),
+      'c-box1-stale-early': boxWithLastSeen(1, 10),
     }
+    // box asc puts the two box-1 cards first; within box 1, lastSeen asc puts
+    // the low-lastSeen card first. Final: c, b, a.
     const out = weakestCards(cards, progress, 3).map((c) => c.id)
-    expect(out).toEqual(['c-weak-stale', 'c-weak-fresh', 'c-strong'])
+    expect(out).toEqual(['c-box1-stale-early', 'b-box1-stale-late', 'a-box2-fresh'])
   })
 
-  it('treats an unseen card as box 1 and takes at most n', () => {
-    const cards = [{ id: 'a' } as never, { id: 'b' } as never, { id: 'c' } as never]
-    expect(weakestCards(cards, {}, 2)).toHaveLength(2)
+  it('treats an unseen card as box 1, ranking it above a stronger card, and takes at most n', () => {
+    const cards = [{ id: 'strong' } as never, { id: 'unseen' } as never, { id: 'also-unseen' } as never]
+    const progress: ProgressMap = { strong: boxWithLastSeen(4, 0) }
+    // 'unseen' and 'also-unseen' have no progress -> box 1 -> weaker than 'strong' (box 4).
+    const out = weakestCards(cards, progress, 2).map((c) => c.id)
+    expect(out).toHaveLength(2)
+    expect(out).not.toContain('strong')
   })
 })
 
