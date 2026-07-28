@@ -1,14 +1,15 @@
 'use client'
 
-import { useMemo, useReducer } from 'react'
+import { Suspense, useMemo, useReducer } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { CardStage } from '@/components/CardStage'
 import { UnitUnlockRing } from '@/components/UnitUnlockRing'
 import { VoiceWarning } from '@/components/VoiceWarning'
 import { matchesAnswer } from '@/lib/answer'
 import { type Card } from '@/lib/courses'
-import { currentUnitGoal } from '@/lib/goals'
-import { nextCard, unlockedCards, type ProgressMap } from '@/lib/leitner'
+import { currentUnitGoal, drillPool } from '@/lib/goals'
+import { nextCard, type ProgressMap } from '@/lib/leitner'
 import { useActiveCourse, useProgress } from '@/lib/useProgress'
 
 export type Phase = 'introduce' | 'prompt' | 'revealed'
@@ -119,12 +120,13 @@ export function isSessionEnded(state: State, hasCard: boolean): boolean {
   return state.tally.studied > 0 && (state.finished || !hasCard)
 }
 
-export default function StudyPage() {
+function StudySession() {
   const { course } = useActiveCourse()
   const { progress, gradeCard } = useProgress()
   const [state, dispatch] = useReducer(reducer, initial)
 
-  const pool = useMemo(() => unlockedCards(course, progress), [course, progress])
+  const mode = useSearchParams().get('mode')
+  const pool = useMemo(() => drillPool(course, progress, mode), [course, progress, mode])
   const goal = useMemo(() => currentUnitGoal(course, progress), [course, progress])
   const card: Card | null = useMemo(
     () => nextCard(pool, progress, state.history),
@@ -230,5 +232,14 @@ export default function StudyPage() {
         }}
       />
     </main>
+  )
+}
+
+export default function StudyPage() {
+  // useSearchParams must sit under a Suspense boundary for the static export build.
+  return (
+    <Suspense fallback={null}>
+      <StudySession />
+    </Suspense>
   )
 }
