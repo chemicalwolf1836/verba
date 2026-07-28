@@ -108,3 +108,47 @@ describe('masteredCount and notLearnedCount', () => {
     expect(notLearnedCount(course.cards, p)).toBe(5)
   })
 })
+
+import { weakestCards, drillPool, WEAK_COUNT } from './goals'
+import { getCourse, DEFAULT_COURSE_ID } from '@/lib/courses'
+
+const boxWithLastSeen = (n: CardProgress['box'], lastSeen = 0): CardProgress => ({
+  box: n,
+  seen: 1,
+  correct: 0,
+  lastSeen,
+})
+
+describe('weakestCards', () => {
+  it('orders by box ascending, then by lastSeen ascending', () => {
+    const cards = [
+      { id: 'c-strong' } as never,
+      { id: 'c-weak-stale' } as never,
+      { id: 'c-weak-fresh' } as never,
+    ]
+    const progress: ProgressMap = {
+      'c-strong': boxWithLastSeen(5, 100),
+      'c-weak-stale': boxWithLastSeen(1, 10),
+      'c-weak-fresh': boxWithLastSeen(1, 99),
+    }
+    const out = weakestCards(cards, progress, 3).map((c) => c.id)
+    expect(out).toEqual(['c-weak-stale', 'c-weak-fresh', 'c-strong'])
+  })
+
+  it('treats an unseen card as box 1 and takes at most n', () => {
+    const cards = [{ id: 'a' } as never, { id: 'b' } as never, { id: 'c' } as never]
+    expect(weakestCards(cards, {}, 2)).toHaveLength(2)
+  })
+})
+
+describe('drillPool', () => {
+  it('returns the full unlocked pool when mode is null', () => {
+    const course = getCourse(DEFAULT_COURSE_ID)!
+    expect(drillPool(course, {}, null).length).toBeGreaterThan(WEAK_COUNT)
+  })
+
+  it('returns at most WEAK_COUNT weakest cards when mode is "weak"', () => {
+    const course = getCourse(DEFAULT_COURSE_ID)!
+    expect(drillPool(course, {}, 'weak')).toHaveLength(WEAK_COUNT)
+  })
+})

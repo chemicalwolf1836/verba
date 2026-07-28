@@ -1,5 +1,5 @@
 import type { Card, Course, Unit } from '@/lib/courses'
-import { isLearned, isMastered, unlockPoint, type ProgressMap } from './leitner'
+import { isLearned, isMastered, unlockPoint, unlockedCards, type ProgressMap } from './leitner'
 
 export type UnitGoal = {
   unit: Unit
@@ -56,4 +56,28 @@ export function masteredCount(cards: Card[], progress: ProgressMap): number {
 
 export function notLearnedCount(cards: Card[], progress: ProgressMap): number {
   return cards.filter((c) => !isLearned(progress[c.id])).length
+}
+
+/** How many weak cards the dashboard lists and the focused drill runs on. */
+export const WEAK_COUNT = 8
+
+/** The n weakest cards: box ascending, then lastSeen ascending (stalest first).
+ *  An unseen card sorts in as box 1, lastSeen 0. */
+export function weakestCards(cards: Card[], progress: ProgressMap, n: number): Card[] {
+  return [...cards]
+    .sort((a, b) => {
+      const pa = progress[a.id]
+      const pb = progress[b.id]
+      const boxDiff = (pa?.box ?? 1) - (pb?.box ?? 1)
+      if (boxDiff !== 0) return boxDiff
+      return (pa?.lastSeen ?? 0) - (pb?.lastSeen ?? 0)
+    })
+    .slice(0, n)
+}
+
+/** The pool a study session draws from. `mode === 'weak'` focuses it on the
+ *  weakest cards; any other value is the full unlocked pool (today's behaviour). */
+export function drillPool(course: Course, progress: ProgressMap, mode: string | null): Card[] {
+  const pool = unlockedCards(course, progress)
+  return mode === 'weak' ? weakestCards(pool, progress, WEAK_COUNT) : pool
 }
