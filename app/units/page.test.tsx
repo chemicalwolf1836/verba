@@ -7,6 +7,11 @@ import type { CardProgress, ProgressMap } from '@/lib/leitner'
 /**
  * Minimal render harness (no @testing-library/react available offline), matching
  * the pattern used by components/UnitUnlockRing.test.tsx.
+ *
+ * NOTE: this page now renders <RouteMap /> (see components/RouteMap.tsx) instead
+ * of the old per-unit UnitCard list, so assertions below check RouteMap's markup:
+ * station links to /units/<id> for unlocked units only, unit.theme text for every
+ * unit, and "Locked" (not the old UnitCard-specific copy) for locked units.
  */
 function render(node: React.ReactElement) {
   const container = document.createElement('div')
@@ -40,13 +45,14 @@ describe('UnitsPage', () => {
     const { default: UnitsPage } = await import('./page')
     const course = getCourse(DEFAULT_COURSE_ID)!
     const { container, unmount } = render(<UnitsPage />)
+    await act(async () => {})
 
     const links = Array.from(container.querySelectorAll('a[href^="/units/"]'))
     expect(links).toHaveLength(1)
     expect(links[0].getAttribute('href')).toBe('/units/bjt-w01')
 
-    expect(container.textContent).toContain('Locked - finish the previous week first')
-    expect(container.textContent).toContain(`${course.unitLabel} 2`)
+    expect(container.textContent).toContain('Locked')
+    expect(container.textContent).toContain(course.units[1].theme)
     unmount()
   })
 
@@ -62,8 +68,9 @@ describe('UnitsPage', () => {
 
     const { default: UnitsPage } = await import('./page')
     const { container, unmount } = render(<UnitsPage />)
+    await act(async () => {})
 
-    expect(container.textContent).toContain('3 of 8 learned')
+    expect(container.textContent).toContain('3 / 8 learned')
     unmount()
   })
 
@@ -79,6 +86,7 @@ describe('UnitsPage', () => {
 
     const { default: UnitsPage } = await import('./page')
     const { container, unmount } = render(<UnitsPage />)
+    await act(async () => {})
 
     const hrefs = Array.from(container.querySelectorAll('a[href^="/units/"]')).map((a) =>
       a.getAttribute('href'),
@@ -93,10 +101,11 @@ describe('UnitsPage', () => {
     const { default: UnitsPage } = await import('./page')
     const course = getCourse(DEFAULT_COURSE_ID)!
     const { container, unmount } = render(<UnitsPage />)
+    await act(async () => {})
 
     expect(course.units).toHaveLength(24)
     for (const unit of course.units) {
-      expect(container.textContent).toContain(`${course.unitLabel} ${unit.index} - ${unit.theme}`)
+      expect(container.textContent).toContain(unit.theme)
     }
     unmount()
   })
