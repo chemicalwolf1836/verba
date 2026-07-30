@@ -1,5 +1,12 @@
 import type { Card, Course, Unit } from '@/lib/courses'
-import { isLearned, isMastered, unlockPoint, unlockedCards, type ProgressMap } from './leitner'
+import {
+  isLearned,
+  isMastered,
+  unlockPoint,
+  unlockedCards,
+  type CardProgress,
+  type ProgressMap,
+} from './leitner'
 
 export type UnitGoal = {
   unit: Unit
@@ -61,10 +68,22 @@ export function notLearnedCount(cards: Card[], progress: ProgressMap): number {
 /** How many weak cards the dashboard lists and the focused drill runs on. */
 export const WEAK_COUNT = 8
 
-/** The n weakest cards: box ascending, then lastSeen ascending (stalest first).
- *  An unseen card sorts in as box 1, lastSeen 0. */
+/**
+ * A card is weak until it is solid - answered correctly three times running (box 4).
+ * Deliberately a third threshold alongside learned (box >= 2) and mastered (box 5):
+ * "words to shore up" must mean cards that still need work, not just the bottom of
+ * the pile, or the list would keep offering box-5 cards once everything is going well.
+ */
+export function isWeak(p?: CardProgress): boolean {
+  return (p?.box ?? 1) < 4
+}
+
+/** The n weakest cards - box ascending, then lastSeen ascending (stalest first) -
+ *  drawn only from cards that are still weak. An unseen card counts as box 1,
+ *  lastSeen 0. Returns fewer than n, or none at all, when little is weak. */
 export function weakestCards(cards: Card[], progress: ProgressMap, n: number): Card[] {
-  return [...cards]
+  return cards
+    .filter((c) => isWeak(progress[c.id]))
     .sort((a, b) => {
       const pa = progress[a.id]
       const pb = progress[b.id]
