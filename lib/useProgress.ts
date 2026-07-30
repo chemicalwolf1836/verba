@@ -6,6 +6,7 @@ import { loadActivity, recordGrade, subscribeActivity, type ActivityLog } from '
 import { DEFAULT_COURSE_ID, getCourse, type Course } from './courses'
 import { grade, type ProgressMap } from './leitner'
 import { loadProgress, saveProgress, subscribeProgress } from './progress'
+import { loadMuted, subscribeSound } from './sound'
 
 const EMPTY_PROGRESS: ProgressMap = {}
 
@@ -94,4 +95,13 @@ export function useActiveCourse(): { course: Course; courseId: string; setCourse
   const course = getCourse(courseId) ?? getCourse(DEFAULT_COURSE_ID)!
   const setCourse = useCallback((id: string) => saveActiveCourseId(id), [])
   return { course, courseId: course.id, setCourse }
+}
+
+/**
+ * Whether sound is muted, reactive to the toggle. Server/first-client snapshot is
+ * `true` (muted) so the static export renders a stable icon before the store read
+ * settles after mount - same hydration-safe shape as the other hooks here.
+ */
+export function useSfxMuted(): boolean {
+  return useSyncExternalStore(subscribeSound, loadMuted, () => true)
 }

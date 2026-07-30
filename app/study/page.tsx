@@ -1,15 +1,17 @@
 'use client'
 
-import { Suspense, useMemo, useReducer } from 'react'
+import { Suspense, useEffect, useMemo, useReducer, useRef } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { CardStage } from '@/components/CardStage'
+import { SoundToggle } from '@/components/SoundToggle'
 import { UnitUnlockRing } from '@/components/UnitUnlockRing'
 import { VoiceWarning } from '@/components/VoiceWarning'
 import { matchesAnswer } from '@/lib/answer'
 import { type Card } from '@/lib/courses'
 import { currentUnitGoal, drillPool } from '@/lib/goals'
-import { nextCard, type ProgressMap } from '@/lib/leitner'
+import { nextCard, unlockedUnits, type ProgressMap } from '@/lib/leitner'
+import { playSfx } from '@/lib/sfx'
 import { useActiveCourse, useProgress } from '@/lib/useProgress'
 
 export type Phase = 'introduce' | 'prompt' | 'revealed'
@@ -128,6 +130,16 @@ function StudySession() {
   const mode = useSearchParams().get('mode')
   const pool = useMemo(() => drillPool(course, progress, mode), [course, progress, mode])
   const goal = useMemo(() => currentUnitGoal(course, progress), [course, progress])
+  const unlockedCount = useMemo(() => unlockedUnits(course, progress).length, [course, progress])
+  const prevUnlocked = useRef(unlockedCount)
+  useEffect(() => {
+    // Only a grade made in this session can open a station. The studied check is
+    // what makes this correct under hydration too: the first client render may use
+    // an empty progress snapshot, so the ref alone could capture a stale count and
+    // misfire when the real count arrives.
+    if (state.tally.studied > 0 && unlockedCount > prevUnlocked.current) playSfx('unlock')
+    prevUnlocked.current = unlockedCount
+  }, [unlockedCount, state.tally.studied])
   const card: Card | null = useMemo(
     () => nextCard(pool, progress, state.history),
     [pool, progress, state.history],
@@ -199,19 +211,22 @@ function StudySession() {
         <span className="tabular-nums">
           {state.tally.studied} studied · {state.tally.got} got
         </span>
-        <Link
-          href="/"
-          className="sig-label rounded-full border border-[var(--color-line)] px-3 py-1 text-[11px]"
-          onClick={(e) => {
-            // Zero cards studied: Finish just navigates home like a plain link -
-            // no fake "session complete" screen for a session that never happened.
-            if (state.tally.studied === 0) return
-            e.preventDefault()
-            dispatch({ type: 'finish' })
-          }}
-        >
-          Finish
-        </Link>
+        <div className="flex items-center gap-3">
+          <SoundToggle />
+          <Link
+            href="/"
+            className="sig-label rounded-full border border-[var(--color-line)] px-3 py-1 text-[11px]"
+            onClick={(e) => {
+              // Zero cards studied: Finish just navigates home like a plain link -
+              // no fake "session complete" screen for a session that never happened.
+              if (state.tally.studied === 0) return
+              e.preventDefault()
+              dispatch({ type: 'finish' })
+            }}
+          >
+            Finish
+          </Link>
+        </div>
       </header>
 
       {goal && <UnitUnlockRing goal={goal} unitLabel={course.unitLabel} />}
@@ -224,9 +239,13 @@ function StudySession() {
         typed={state.typed}
         matched={matchesAnswer(state.typed, card)}
         onType={(value) => dispatch({ type: 'type', value })}
-        onReveal={() => dispatch({ type: 'reveal', isNew })}
+        onReveal={() => {
+          playSfx('reveal')
+          dispatch({ type: 'reveal', isNew })
+        }}
         onContinue={() => dispatch({ type: 'continue', cardId: card.id })}
         onGrade={(correct) => {
+          playSfx(correct ? 'correct' : 'incorrect')
           gradeCard(card.id, correct)
           dispatch({ type: 'graded', correct, cardId: card.id })
         }}
