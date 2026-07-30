@@ -133,11 +133,13 @@ function StudySession() {
   const unlockedCount = useMemo(() => unlockedUnits(course, progress).length, [course, progress])
   const prevUnlocked = useRef(unlockedCount)
   useEffect(() => {
-    // Plays only when a grade opens a new station. On mount the ref already equals
-    // the current count, so nothing fires spuriously.
-    if (unlockedCount > prevUnlocked.current) playSfx('unlock')
+    // Only a grade made in this session can open a station. The studied check is
+    // what makes this correct under hydration too: the first client render may use
+    // an empty progress snapshot, so the ref alone could capture a stale count and
+    // misfire when the real count arrives.
+    if (state.tally.studied > 0 && unlockedCount > prevUnlocked.current) playSfx('unlock')
     prevUnlocked.current = unlockedCount
-  }, [unlockedCount])
+  }, [unlockedCount, state.tally.studied])
   const card: Card | null = useMemo(
     () => nextCard(pool, progress, state.history),
     [pool, progress, state.history],

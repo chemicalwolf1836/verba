@@ -10,6 +10,8 @@ function audio(): AudioContext | null {
     window.AudioContext ??
     (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
   if (!AC) return null
+  // A closed context can never produce sound again - drop it so the next play rebuilds one.
+  if (ctx && ctx.state === 'closed') ctx = null
   if (!ctx) {
     try {
       ctx = new AC()
@@ -63,8 +65,9 @@ export function playSfx(name: SfxName): void {
   const c = audio()
   if (!c) return
   try {
-    // iOS starts the context suspended; resume it inside the triggering gesture.
-    if (c.state === 'suspended') c.resume().catch(() => {})
+    // Covers Safari's non-standard 'interrupted' state (a call or another app taking
+    // the audio session) as well as the 'suspended' state iOS starts in.
+    if (c.state !== 'running') c.resume().catch(() => {})
     VOICES[name](c, c.currentTime)
   } catch {
     // Swallow any Web Audio failure.
