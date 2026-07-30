@@ -109,7 +109,7 @@ describe('masteredCount and notLearnedCount', () => {
   })
 })
 
-import { weakestCards, drillPool, WEAK_COUNT } from './goals'
+import { weakestCards, drillPool, isWeak, WEAK_COUNT } from './goals'
 import { getCourse, DEFAULT_COURSE_ID } from '@/lib/courses'
 
 const boxWithLastSeen = (n: CardProgress['box'], lastSeen = 0): CardProgress => ({
@@ -146,6 +146,39 @@ describe('weakestCards', () => {
     const out = weakestCards(cards, progress, 2).map((c) => c.id)
     expect(out).toHaveLength(2)
     expect(out).not.toContain('strong')
+  })
+
+  it('excludes solid cards (box 4 and 5) even when fewer than n weak cards remain', () => {
+    // The list is "words to shore up", not "the bottom n by rank" - a card answered
+    // right three times running is not something to shore up.
+    const cards = [
+      { id: 'w-box3' } as never,
+      { id: 's-box4' } as never,
+      { id: 's-box5' } as never,
+    ]
+    const progress: ProgressMap = {
+      'w-box3': boxWithLastSeen(3, 1),
+      's-box4': boxWithLastSeen(4, 1),
+      's-box5': boxWithLastSeen(5, 1),
+    }
+    const out = weakestCards(cards, progress, 8).map((c) => c.id)
+    expect(out).toEqual(['w-box3'])
+  })
+
+  it('returns an empty list once every card is solid, so the empty state is reachable', () => {
+    const cards = [{ id: 'a' } as never, { id: 'b' } as never]
+    const progress: ProgressMap = { a: boxWithLastSeen(4, 1), b: boxWithLastSeen(5, 1) }
+    expect(weakestCards(cards, progress, 8)).toEqual([])
+  })
+})
+
+describe('isWeak', () => {
+  it('counts boxes 1 to 3 as weak and 4 to 5 as solid', () => {
+    expect(isWeak(undefined)).toBe(true)
+    expect(isWeak(boxWithLastSeen(1))).toBe(true)
+    expect(isWeak(boxWithLastSeen(3))).toBe(true)
+    expect(isWeak(boxWithLastSeen(4))).toBe(false)
+    expect(isWeak(boxWithLastSeen(5))).toBe(false)
   })
 })
 
