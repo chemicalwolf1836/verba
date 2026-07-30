@@ -47,11 +47,32 @@ export function StationList() {
     )
   }, [course, progress])
 
+  const list = stations ?? []
+
   return (
-    <ol className="space-y-1">
-      {(stations ?? []).map((s) => {
+    // No gap between rows: the route line is drawn per row, so the segments have to
+    // meet for the line to read as continuous.
+    <ol>
+      {list.map((s, i) => {
+        // The roundel is 30px wide, so its centre is 15px in - the line sits on that
+        // axis and stops at the roundel's edge rather than running behind it, which
+        // keeps it clean whether the station is filled or transparent.
+        const rail = 'absolute left-[14px] w-0.5'
+        const reached = (st: Station | undefined) =>
+          st?.unlocked ? 'bg-[var(--color-accent)]' : 'bg-[var(--color-line)]'
+
         const body = (
-          <div className="flex items-center gap-3 py-1.5">
+          <div className="relative flex items-center gap-2.5 py-2">
+            {i > 0 && (
+              <span aria-hidden className={`${rail} top-0 h-[calc(50%-15px)] ${reached(s)}`} />
+            )}
+            {i < list.length - 1 && (
+              <span
+                aria-hidden
+                className={`${rail} bottom-0 top-[calc(50%+15px)] ${reached(list[i + 1])}`}
+              />
+            )}
+
             <span
               className={`roundel ${s.mastered ? 'text-white' : ''}`}
               style={{
@@ -66,12 +87,16 @@ export function StationList() {
             >
               {s.unit.index}
             </span>
-            <span className={s.unlocked ? '' : 'text-[var(--color-muted)]'}>
-              <span className="font-semibold">{s.unit.theme}</span>
-              <span className="ml-2 text-xs text-[var(--color-muted)]">
-                {s.unlocked ? `${s.learned} / ${s.total} learned` : 'Locked'}
-                {s.here ? ' · you are here' : ''}
-              </span>
+
+            <span
+              className={`font-semibold ${s.unlocked ? '' : 'text-[var(--color-muted)]'}`}
+            >
+              {s.unit.theme}
+            </span>
+            <span aria-hidden className="h-3.5 w-px flex-none bg-[var(--color-line)]" />
+            <span className="min-w-0 truncate text-xs text-[var(--color-muted)]">
+              {s.unlocked ? `${s.learned} / ${s.total} learned` : 'Locked'}
+              {s.here ? ' · you are here' : ''}
             </span>
           </div>
         )
