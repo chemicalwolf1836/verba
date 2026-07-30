@@ -10,7 +10,13 @@ function audio(): AudioContext | null {
     window.AudioContext ??
     (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
   if (!AC) return null
-  if (!ctx) ctx = new AC()
+  if (!ctx) {
+    try {
+      ctx = new AC()
+    } catch {
+      return null
+    }
+  }
   return ctx
 }
 
@@ -58,7 +64,7 @@ export function playSfx(name: SfxName): void {
   if (!c) return
   try {
     // iOS starts the context suspended; resume it inside the triggering gesture.
-    if (c.state === 'suspended') void c.resume()
+    if (c.state === 'suspended') c.resume().catch(() => {})
     VOICES[name](c, c.currentTime)
   } catch {
     // Swallow any Web Audio failure.
