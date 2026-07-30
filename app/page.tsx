@@ -25,7 +25,10 @@ export default function Home() {
       </header>
 
       <div>
-        <h1 className="sig-label text-2xl font-bold tracking-tight">Verba</h1>
+        <h1 className="sig-label text-2xl font-medium tracking-[0.3em]">Verba</h1>
+        {/* A platform rule under the name - the route-map idea stated with a line
+            rather than a graphic. */}
+        <div aria-hidden className="mt-2 h-0.5 w-20 rounded-full bg-[var(--color-ink)]" />
         {/* The strip previews the line; on xl the full station panel is on screen,
             so the preview would just repeat it. */}
         <div className="xl:hidden">

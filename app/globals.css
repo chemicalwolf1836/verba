@@ -1,14 +1,18 @@
 @import "tailwindcss";
 
-/* Self-hosted, so the signage type ships offline with the app - no font CDN at
-   runtime. Barlow is a grotesque with a transit-signage lineage; Barlow Semi
-   Condensed handles station numbers and board labels. Japanese glyphs fall
-   through Barlow (which has none) to the platform gothic stack below. */
-@font-face { font-family: "Barlow"; src: url(/fonts/barlow-400.woff2) format("woff2"); font-weight: 400; font-display: swap; }
-@font-face { font-family: "Barlow"; src: url(/fonts/barlow-600.woff2) format("woff2"); font-weight: 600; font-display: swap; }
-@font-face { font-family: "Barlow"; src: url(/fonts/barlow-700.woff2) format("woff2"); font-weight: 700; font-display: swap; }
-@font-face { font-family: "Barlow SC"; src: url(/fonts/barlowsc-600.woff2) format("woff2"); font-weight: 600; font-display: swap; }
-@font-face { font-family: "Barlow SC"; src: url(/fonts/barlowsc-700.woff2) format("woff2"); font-weight: 700; font-display: swap; }
+/* Self-hosted, so the type ships offline with the app - no font CDN at runtime.
+   Manrope carries the Latin: softly geometric, generous, calm at small sizes.
+   Zen Kaku Gothic New carries the Japanese, which used to fall through to
+   whatever gothic the device happened to have - so the script being studied was
+   the one text with no chosen typeface, and looked different on every machine.
+   Both are rebuilt by scripts/build-fonts.py; the Japanese face is subset to the
+   glyphs the course data uses, and anything outside it degrades to the platform
+   stack rather than to tofu. */
+@font-face { font-family: "Manrope"; src: url(/fonts/manrope-400.woff2) format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Manrope"; src: url(/fonts/manrope-600.woff2) format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "Manrope"; src: url(/fonts/manrope-700.woff2) format("woff2"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Zen Kaku"; src: url(/fonts/zenkaku-400.woff2) format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Zen Kaku"; src: url(/fonts/zenkaku-700.woff2) format("woff2"); font-weight: 700; font-display: swap; }
 
 @theme {
   /* Rosen-zu (route-map) palette. Daytime platform: warm-neutral ground, sumi
@@ -25,8 +29,11 @@
   --color-board: #1b1c1e;   /* dark signage board */
   --color-board-ink: #f3f3f0;
 
-  --font-sans: "Barlow", ui-sans-serif, system-ui, "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic", "BIZ UDPGothic", "Noto Sans JP", sans-serif;
-  --font-signage: "Barlow SC", "Barlow", ui-sans-serif, sans-serif;
+  /* Zen Kaku sits after Manrope so Latin takes Manrope's shapes and Japanese
+     falls to Zen Kaku, with the platform stack behind it for any glyph outside
+     the subset. */
+  --font-sans: "Manrope", "Zen Kaku", ui-sans-serif, system-ui, "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic", "BIZ UDPGothic", "Noto Sans JP", sans-serif;
+  --font-signage: "Manrope", "Zen Kaku", ui-sans-serif, sans-serif;
 }
 
 body {
@@ -45,7 +52,7 @@ body {
 }
 
 /* Japanese glyphs get proportional metrics so a gothic kanji doesn't crowd the
-   tight Barlow around it. */
+   tight Manrope around it. */
 .jp { font-feature-settings: "palt" 1; }
 
 /* ---- transit signage primitives ---- */
@@ -60,20 +67,29 @@ body {
   gap: 10px;
   padding: 10px 14px;
 }
+/* A platform sign is one line. The course name truncates rather than wrapping,
+   so a long name (or a wider face than the last one) can never stack the board
+   into two rows on a phone. */
 .board .lab {
   font-family: var(--font-signage);
   font-weight: 600;
   letter-spacing: .08em;
   text-transform: uppercase;
   font-size: 13px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 .board .nxt {
   margin-left: auto;
+  flex: none;
   font-family: var(--font-signage);
   font-size: 11px;
   letter-spacing: .1em;
   color: #b9b9b2;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 /* Numbered line roundel */

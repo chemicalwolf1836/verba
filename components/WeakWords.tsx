@@ -24,11 +24,16 @@ export function WeakWords() {
           Nothing to shore up right now - keep studying.
         </p>
       ) : (
-        <ul className="mt-2 space-y-1">
+        // A shared grid rather than a flex row per line, so the hairline rules land
+        // on the same two axes down the whole list - a timetable column, not a mark
+        // that drifts with each word's length.
+        <ul className="mt-2 grid grid-cols-[auto_1px_auto_1px_minmax(0,1fr)] items-baseline gap-x-3 gap-y-1 text-sm">
           {(cards ?? []).map((c) => (
-            <li key={c.id} className="flex items-baseline gap-2 text-sm">
-              <span className="jp min-w-6 font-bold">{c.jp}</span>
+            <li key={c.id} className="contents">
+              <span className="jp font-bold">{c.jp}</span>
+              <span aria-hidden className="h-3.5 w-px self-center bg-[var(--color-line)]" />
               <span className="text-[var(--color-muted)]">{c.reading}</span>
+              <span aria-hidden className="h-3.5 w-px self-center bg-[var(--color-line)]" />
               <span className="truncate">{c.meaning}</span>
             </li>
           ))}
