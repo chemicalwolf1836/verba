@@ -1,6 +1,6 @@
 // Hand-written rather than next-pwa: that plugin lags Next releases, and a service
 // worker you cannot read is not debuggable on a train with no signal.
-const CACHE = 'bjt-trainer-v1'
+const CACHE = 'verba-v1'
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
