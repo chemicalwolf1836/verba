@@ -293,6 +293,23 @@ const expand = (o: 'p' | 'd'): Origin => (o === 'p' ? 'prototype' : 'drafted')
 // saved progress.
 const unitIdFor = (week: number) => `${COURSE_ID}-w${String(week).padStart(2, '0')}`
 
+/**
+ * Memory hooks, keyed by headword. Sparse on purpose - a card with no entry
+ * omits the "Remember it" panel entirely rather than showing filler.
+ *
+ * Kept as a side map rather than a ninth column so that adding a hook never
+ * reshuffles the 192 rows above, and so the gaps stay obvious at a glance.
+ * These six are carried over from the Quiet Car design; the rest are open.
+ */
+const HOOKS: Record<string, string> = {
+  会議: '会 meet + 議 deliberate. The formal one - 打ち合わせ is the quick huddle.',
+  見積もり: '見 look + 積 pile up - you look at the pile and put a number on it.',
+  打ち合わせ: 'Literally "striking things together" - the informal sibling of 会議.',
+  残業: '残 remaining + 業 work - the work that stayed behind after five.',
+  稟議書: 'The document that walks the office collecting stamps before anything happens.',
+  出張: '出 go out + 張 stretch - the company stretches you out to another city.',
+}
+
 const VOCAB_CARDS: Card[] = VOCAB_ROWS.map(
   ([jp, reading, meaning, exampleJp, exampleEn, week, theme, origin]) => ({
     id: `${COURSE_ID}-vocab-${jp}`,
@@ -304,6 +321,7 @@ const VOCAB_CARDS: Card[] = VOCAB_ROWS.map(
     meaning,
     exampleJp,
     exampleEn,
+    hook: HOOKS[jp],
     theme,
     origin: expand(origin),
   }),

@@ -6,6 +6,13 @@ import { loadActivity, recordGrade, subscribeActivity, type ActivityLog } from '
 import { DEFAULT_COURSE_ID, getCourse, type Course } from './courses'
 import { grade, type ProgressMap } from './leitner'
 import { loadProgress, saveProgress, subscribeProgress } from './progress'
+import {
+  DEFAULT_SESSION,
+  loadSession,
+  saveSession,
+  subscribeSession,
+  type SessionConfig,
+} from './session'
 import { loadMuted, subscribeSound } from './sound'
 
 const EMPTY_PROGRESS: ProgressMap = {}
@@ -95,6 +102,43 @@ export function useActiveCourse(): { course: Course; courseId: string; setCourse
   const course = getCourse(courseId) ?? getCourse(DEFAULT_COURSE_ID)!
   const setCourse = useCallback((id: string) => saveActiveCourseId(id), [])
   return { course, courseId: course.id, setCourse }
+}
+
+let sessionCache: SessionConfig | null = null
+
+function getSessionSnapshot(): SessionConfig {
+  // Same reference-stability rule as progress: loadSession builds a fresh object
+  // each call, so it cannot be handed to useSyncExternalStore directly.
+  if (sessionCache === null) sessionCache = loadSession()
+  return sessionCache
+}
+
+/**
+ * The session setup - length, what's in the queue, whether typing is on. Server
+ * and first-client render both get DEFAULT_SESSION so the static export hydrates
+ * against a stable object; a stored config settles in after mount, exactly like
+ * useProgress and useActiveCourse.
+ */
+export function useSession(): {
+  session: SessionConfig
+  setSession: (next: SessionConfig) => void
+} {
+  const session = useSyncExternalStore(
+    (onChange) =>
+      subscribeSession(() => {
+        sessionCache = loadSession()
+        onChange()
+      }),
+    getSessionSnapshot,
+    () => DEFAULT_SESSION,
+  )
+
+  const setSession = useCallback((next: SessionConfig) => {
+    sessionCache = next
+    saveSession(next)
+  }, [])
+
+  return { session, setSession }
 }
 
 /**
