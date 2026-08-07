@@ -120,6 +120,13 @@ body {
 .seg { height: 4px; border-radius: 2px; background: var(--color-accent); }
 .seg.pending { background: var(--color-line); }
 
+/* Audio playback bar. Width is animated rather than transitioned so that
+   re-keying the element restarts the fill from zero on every replay.
+   SpeechSynthesis reports no duration up front, so the span is sized from
+   lib/shadow's estimate - it indicates "audio is running", not exact position. */
+@keyframes audio-fill { from { width: 0 } to { width: 100% } }
+.audio-fill { animation: audio-fill linear forwards; }
+
 /* Focus visibility (quality floor) */
 a:focus-visible, button:focus-visible, input:focus-visible {
   outline: 2px solid var(--color-accent);
