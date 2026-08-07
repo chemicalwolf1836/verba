@@ -1,7 +1,7 @@
 'use client'
 
-import { RouteMap } from '@/components/RouteMap'
+import { LineBrowser } from '@/components/LineBrowser'
 
 export default function UnitsPage() {
-  return <RouteMap />
+  return <LineBrowser />
 }

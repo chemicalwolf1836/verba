@@ -100,3 +100,15 @@ export function drillPool(course: Course, progress: ProgressMap, mode: string | 
   const pool = unlockedCards(course, progress)
   return mode === 'weak' ? weakestCards(pool, progress, WEAK_COUNT) : pool
 }
+
+/**
+ * One station's cards, for drilling a single unit from the line browser.
+ *
+ * Filtered out of `unlockedCards` rather than off `course.cards` directly, so a
+ * hand-typed `?unit=` for a station further up the line yields nothing instead of
+ * handing over words the learner has not reached. The unlock gate is the same one
+ * the browser and the scheduler use - it is not re-derived here.
+ */
+export function unitPool(course: Course, progress: ProgressMap, unitId: string): Card[] {
+  return unlockedCards(course, progress).filter((c) => c.unitId === unitId)
+}

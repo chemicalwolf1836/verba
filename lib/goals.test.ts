@@ -109,7 +109,7 @@ describe('masteredCount and notLearnedCount', () => {
   })
 })
 
-import { weakestCards, drillPool, isWeak, WEAK_COUNT } from './goals'
+import { weakestCards, drillPool, isWeak, unitPool, WEAK_COUNT } from './goals'
 import { getCourse, DEFAULT_COURSE_ID } from '@/lib/courses'
 
 const boxWithLastSeen = (n: CardProgress['box'], lastSeen = 0): CardProgress => ({
@@ -191,5 +191,32 @@ describe('drillPool', () => {
   it('returns at most WEAK_COUNT weakest cards when mode is "weak"', () => {
     const course = getCourse(DEFAULT_COURSE_ID)!
     expect(drillPool(course, {}, 'weak')).toHaveLength(WEAK_COUNT)
+  })
+})
+
+describe('unitPool', () => {
+  const course = getCourse(DEFAULT_COURSE_ID)!
+
+  it('returns just that unit\'s cards when the unit is unlocked', () => {
+    const pool = unitPool(course, {}, 'bjt-w01')
+    expect(pool).toHaveLength(8)
+    expect(pool.every((c) => c.unitId === 'bjt-w01')).toBe(true)
+  })
+
+  it('returns nothing for a locked unit - a hand-typed ?unit= must not study ahead', () => {
+    // Week 2 is locked with no progress, so the drill has no pool to build from.
+    expect(unitPool(course, {}, 'bjt-w02')).toEqual([])
+  })
+
+  it('opens the unit once the previous one crosses its threshold', () => {
+    const w1 = course.cards.filter((c) => c.unitId === 'bjt-w01')
+    const progress: ProgressMap = Object.fromEntries(
+      w1.slice(0, 6).map((c) => [c.id, { box: 2 as const, seen: 1, correct: 1, lastSeen: 1 }]),
+    )
+    expect(unitPool(course, progress, 'bjt-w02')).toHaveLength(8)
+  })
+
+  it('returns nothing for a unit id that does not exist', () => {
+    expect(unitPool(course, {}, 'nope')).toEqual([])
   })
 })

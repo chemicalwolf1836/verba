@@ -12,7 +12,7 @@ import { UnitUnlockRing } from '@/components/UnitUnlockRing'
 import { VoiceWarning } from '@/components/VoiceWarning'
 import { matchesAnswer } from '@/lib/answer'
 import { type Card } from '@/lib/courses'
-import { currentUnitGoal, drillPool } from '@/lib/goals'
+import { currentUnitGoal, drillPool, unitPool } from '@/lib/goals'
 import { nextCard, unlockedUnits, type ProgressMap } from '@/lib/leitner'
 import { loadProgress } from '@/lib/progress'
 import { countNew, countReviews, sessionPool } from '@/lib/session'
@@ -150,8 +150,13 @@ function StudySession() {
   const { session, setSession } = useSession()
   const [state, dispatch] = useReducer(reducer, initial)
 
-  const mode = useSearchParams().get('mode')
+  const params = useSearchParams()
+  const mode = params.get('mode')
+  const unitId = params.get('unit')
+  // Both of these arrive already scoped by a deliberate choice - a weak drill or
+  // a single station - so neither stops to ask how long the learner has.
   const isWeakDrill = mode === 'weak'
+  const isScoped = isWeakDrill || unitId !== null
 
   /**
    * The session's pool, frozen at the moment it starts.
@@ -170,18 +175,18 @@ function StudySession() {
     // hydration useSyncExternalStore still reports the empty server snapshot, and
     // freezing a pool off that would pick the wrong cards for a weak drill.
     const current = loadProgress()
-    const base = drillPool(course, current, mode)
-    const chosen = isWeakDrill ? base : sessionPool(base, current, session)
+    const base = unitId
+      ? unitPool(course, current, unitId)
+      : drillPool(course, current, mode)
+    const chosen = isScoped ? base : sessionPool(base, current, session)
     setSessionIds(chosen.map((c) => c.id))
     setStartedAt(Date.now())
     dispatch({ type: 'restart' })
-  }, [course, mode, isWeakDrill, session])
+  }, [course, mode, unitId, isScoped, session])
 
-  // A weak drill is already a scoped, deliberate choice - it skips the setup step
-  // rather than asking the learner to configure a queue they just picked by hand.
   useEffect(() => {
-    if (isWeakDrill && sessionIds === null) start()
-  }, [isWeakDrill, sessionIds, start])
+    if (isScoped && sessionIds === null) start()
+  }, [isScoped, sessionIds, start])
 
   const setupPool = useMemo(() => drillPool(course, progress, null), [course, progress])
   const pool = useMemo(
@@ -260,9 +265,9 @@ function StudySession() {
   }
 
   if (sessionIds === null) {
-    // The weak-drill effect freezes its pool on mount; rendering setup for that
+    // The scoped-drill effect freezes its pool on mount; rendering setup for that
     // one frame would flash a screen the learner never asked for.
-    if (isWeakDrill) return null
+    if (isScoped) return null
     return (
       <SessionSetup
         config={session}

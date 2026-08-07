@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { type Unit } from '@/lib/courses'
+import { type Course, type Unit } from '@/lib/courses'
 import { currentUnitGoal } from '@/lib/goals'
 import { isLearned, unlockedUnits } from '@/lib/leitner'
 import { useActiveCourse, useProgress } from '@/lib/useProgress'
@@ -16,13 +16,27 @@ type Station = {
   mastered: boolean
 }
 
+type Props = {
+  /**
+   * When given, an unlocked station calls this instead of navigating - which is
+   * what turns the same list into the rail of a master-detail browser. Without
+   * it the rows stay ordinary links, as the dashboard panel wants.
+   */
+  onSelect?: (unitId: string) => void
+  selectedId?: string | null
+  /** Explicit course, for a deep link whose unit belongs to a course other than
+   *  the active one. Defaults to the active course. */
+  course?: Course
+}
+
 /**
- * The stations of the line, as an ordered list. Shared by the /units page and the
+ * The stations of the line, as an ordered list. Shared by the line browser and the
  * dashboard's route panel so the two can never drift on what a station looks like
  * or which ones are locked. Carries no page chrome - the caller supplies that.
  */
-export function StationList() {
-  const { course } = useActiveCourse()
+export function StationList({ onSelect, selectedId, course: courseProp }: Props = {}) {
+  const { course: activeCourse } = useActiveCourse()
+  const course = courseProp ?? activeCourse
   const { progress } = useProgress()
   const [stations, setStations] = useState<Station[] | null>(null)
 
@@ -62,7 +76,11 @@ export function StationList() {
           st?.unlocked ? 'bg-[var(--color-accent)]' : 'bg-[var(--color-line)]'
 
         const body = (
-          <div className="relative flex items-center gap-2.5 py-2">
+          <div
+            className={`relative flex items-center gap-2.5 rounded-lg py-2 ${
+              s.unit.id === selectedId ? 'bg-[var(--color-line)]/45' : ''
+            }`}
+          >
             {i > 0 && (
               <span aria-hidden className={`${rail} top-0 h-[calc(50%-15px)] ${reached(s)}`} />
             )}
@@ -100,9 +118,23 @@ export function StationList() {
             </span>
           </div>
         )
+        if (!s.unlocked) return <li key={s.unit.id}>{body}</li>
         return (
           <li key={s.unit.id}>
-            {s.unlocked ? <Link href={`/units/${s.unit.id}`}>{body}</Link> : body}
+            {onSelect ? (
+              <button
+                onClick={() => onSelect(s.unit.id)}
+                aria-current={s.unit.id === selectedId ? 'true' : undefined}
+                data-unit={s.unit.id}
+                className="w-full text-left"
+              >
+                {body}
+              </button>
+            ) : (
+              <Link href={`/units/${s.unit.id}`} data-unit={s.unit.id}>
+                {body}
+              </Link>
+            )}
           </li>
         )
       })}

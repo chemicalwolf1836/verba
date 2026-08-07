@@ -47,9 +47,11 @@ describe('UnitsPage', () => {
     const { container, unmount } = render(<UnitsPage />)
     await act(async () => {})
 
-    const links = Array.from(container.querySelectorAll('a[href^="/units/"]'))
-    expect(links).toHaveLength(1)
-    expect(links[0].getAttribute('href')).toBe('/units/bjt-w01')
+    // The rail opens stations in the detail pane beside it rather than
+    // navigating, so an unlocked station is a button, not a link.
+    const open = Array.from(container.querySelectorAll('ol button[data-unit]'))
+    expect(open).toHaveLength(1)
+    expect(open[0].getAttribute('data-unit')).toBe('bjt-w01')
 
     expect(container.textContent).toContain('Locked')
     expect(container.textContent).toContain(course.units[1].theme)
@@ -88,12 +90,12 @@ describe('UnitsPage', () => {
     const { container, unmount } = render(<UnitsPage />)
     await act(async () => {})
 
-    const hrefs = Array.from(container.querySelectorAll('a[href^="/units/"]')).map((a) =>
-      a.getAttribute('href'),
+    const open = Array.from(container.querySelectorAll('ol button[data-unit]')).map((b) =>
+      b.getAttribute('data-unit'),
     )
-    expect(hrefs).toContain('/units/bjt-w01')
-    expect(hrefs).toContain('/units/bjt-w02')
-    expect(hrefs).not.toContain('/units/bjt-w03')
+    expect(open).toContain('bjt-w01')
+    expect(open).toContain('bjt-w02')
+    expect(open).not.toContain('bjt-w03')
     unmount()
   })
 
