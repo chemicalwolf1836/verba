@@ -64,7 +64,11 @@ export default function Home() {
     <main className="mx-auto w-full max-w-3xl px-4 py-8 lg:max-w-6xl lg:px-6">
       <CoursePicker />
 
-      <div className="grid items-start gap-8 lg:grid-cols-[1.25fr_1fr] lg:gap-12">
+      {/* The gap is the space before the rule; the right column's own padding is
+          the space after it, so the divider sits centred in the gutter. Same
+          gap-10 / pl-10 pairing the line browser uses, so the two split-column
+          screens are one decision applied twice rather than two treatments. */}
+      <div className="grid items-start gap-8 lg:grid-cols-[1.25fr_1fr] lg:gap-10">
         {/* ---- left: what to do right now ---- */}
         <div className="flex min-w-0 flex-col gap-5">
           {/* The desktop header carries the wordmark; on a phone it lives here. */}
@@ -128,8 +132,13 @@ export default function Home() {
           <WeakWords />
         </div>
 
-        {/* ---- right: where the whole course stands ---- */}
-        <div className="flex min-w-0 flex-col gap-5">
+        {/* ---- right: where the whole course stands ----
+            self-stretch is what makes the rule full-height rather than
+            content-height. Today the right column is already the taller of the
+            two (the capped station list plus streak and mastery), so the two
+            look identical - but without it the rule would quietly shorten to
+            this column the moment the left side outgrew it. */}
+        <div className="flex min-w-0 flex-col gap-5 lg:self-stretch lg:border-l lg:border-[var(--color-line)] lg:pl-10">
           <section className="space-y-2.5">
             <div className="flex items-baseline justify-between gap-3">
               <h2 className="min-w-0 truncate text-sm font-bold">
