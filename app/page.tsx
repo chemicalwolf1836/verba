@@ -130,6 +130,13 @@ export default function Home() {
 
           <Rule />
           <WeakWords />
+          {/* Slipping and mastery are both word-level counts, so they read as a
+              pair - and moving this one block is what stops the rule running
+              alongside a conspicuous void. The rule between them marks the shift
+              in scope, from the handful slipping right now to the whole course,
+              and matches the one above Slipping. */}
+          <Rule />
+          <MasteryBar />
         </div>
 
         {/* ---- right: where the whole course stands ----
@@ -195,7 +202,6 @@ export default function Home() {
           <Rule />
 
           <StreakHeatmap />
-          <MasteryBar />
         </div>
       </div>
     </main>
