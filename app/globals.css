@@ -127,6 +127,11 @@ body {
 @keyframes audio-fill { from { width: 0 } to { width: 100% } }
 .audio-fill { animation: audio-fill linear forwards; }
 
+/* Shadowing's speaking window, draining rather than filling - it is a countdown
+   for your turn, not progress through the audio. */
+@keyframes gap-drain { from { width: 100% } to { width: 0 } }
+.gap-drain { animation: gap-drain linear forwards; }
+
 /* Focus visibility (quality floor) */
 a:focus-visible, button:focus-visible, input:focus-visible {
   outline: 2px solid var(--color-accent);

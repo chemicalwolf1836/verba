@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { VoiceWarning } from '@/components/VoiceWarning'
 import { SHADOW_LINES } from '@/lib/courses/shadow'
@@ -9,140 +9,192 @@ import { cancel, speak } from '@/lib/speech'
 
 type Phase = 'idle' | 'listen' | 'speak'
 
+const RATES = [
+  { rate: 0.55, label: 'Slow' },
+  { rate: 0.85, label: 'Normal' },
+  { rate: 1, label: 'Native' },
+] as const
+
+const pill =
+  'rounded-full border border-[var(--color-line)] bg-[var(--color-card)] px-4 py-2 text-sm font-bold'
+
 export default function ShadowPage() {
   const [index, setIndex] = useState(0)
   const [phase, setPhase] = useState<Phase>('idle')
-  const [running, setRunning] = useState(false)
   const [rate, setRate] = useState(0.85)
   const [showText, setShowText] = useState(true)
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Bumped on each play so the draining bar's animation restarts.
+  const [runs, setRuns] = useState(0)
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([])
 
   const line = SHADOW_LINES[index]
+  const listenMs = estimateDuration(line.jp, rate)
+  const speakMs = listenMs * SPEAK_MULTIPLIER
 
-  useEffect(() => {
-    // Cancel any in-flight speech and timer when the component unmounts or the
-    // cycle stops, or a paused session keeps talking in the background.
-    return () => {
-      if (timer.current) clearTimeout(timer.current)
-      cancel()
-    }
+  const clearTimers = useCallback(() => {
+    timers.current.forEach(clearTimeout)
+    timers.current = []
   }, [])
 
-  useEffect(() => {
-    if (!running) return
+  const stop = useCallback(() => {
+    clearTimers()
+    cancel()
+    setPhase('idle')
+  }, [clearTimers])
 
-    const listenMs = estimateDuration(line.jp, rate)
+  // Leaving the page must not leave the browser talking.
+  useEffect(() => () => {
+    timers.current.forEach(clearTimeout)
+    cancel()
+  }, [])
+
+  /**
+   * One beat, driven by the play button rather than a rolling cycle: listen while
+   * it speaks, then a turn of your own that is longer than the line took - copying
+   * a phrase back is slower than hearing it. Manual is the right default here;
+   * an auto-advancing loop moves on whether or not you managed to say anything.
+   */
+  const run = () => {
+    clearTimers()
+    setRuns((n) => n + 1)
     setPhase('listen')
     speak(line.jp, { rate })
+    timers.current.push(
+      setTimeout(() => setPhase('speak'), listenMs + 250),
+      setTimeout(() => setPhase('idle'), listenMs + 250 + speakMs),
+    )
+  }
 
-    timer.current = setTimeout(() => {
-      setPhase('speak')
-      timer.current = setTimeout(() => {
-        if (index + 1 >= SHADOW_LINES.length) {
-          setRunning(false)
-          setPhase('idle')
-        } else {
-          setIndex((i) => i + 1)
-        }
-      }, listenMs * SPEAK_MULTIPLIER)
-    }, listenMs + 250)
-
-    return () => {
-      if (timer.current) clearTimeout(timer.current)
-    }
-  }, [running, index, rate, line.jp])
+  const go = (next: number) => {
+    stop()
+    setIndex(next)
+  }
 
   return (
-    <main className="mx-auto max-w-lg space-y-4 px-4 py-6">
-      <div className="flex justify-between text-sm text-[var(--color-muted)]">
-        <span>
-          Sentence {index + 1} / {SHADOW_LINES.length}
-        </span>
-        <Link
-          href="/"
-          className="sig-label rounded-full border border-[var(--color-line)] px-3 py-1 text-[11px]"
-          onClick={() => cancel()}
-        >
-          Finish
-        </Link>
+    <main className="mx-auto flex min-h-[34rem] w-full max-w-xl flex-col gap-5 px-4 py-5">
+      <div className="space-y-2.5">
+        <div className="flex items-baseline">
+          <span className="text-sm font-extrabold tabular-nums">
+            {index + 1}{' '}
+            <span className="font-semibold text-[var(--color-muted)]">
+              of {SHADOW_LINES.length}
+            </span>
+          </span>
+          <Link
+            href="/"
+            onClick={() => cancel()}
+            className="ml-auto text-sm font-bold text-[var(--color-muted)]"
+          >
+            Done
+          </Link>
+        </div>
+        <div className="h-[5px] overflow-hidden rounded-sm bg-[var(--color-line)]">
+          <span
+            className="block h-full bg-[var(--color-accent)]"
+            style={{ width: `${((index + 1) / SHADOW_LINES.length) * 100}%` }}
+          />
+        </div>
       </div>
 
       <VoiceWarning />
 
-      <p className="sig-label text-center text-sm text-[var(--color-accent)]">
-        {phase === 'listen'
-          ? 'Listen carefully...'
-          : phase === 'speak'
-            ? 'Your turn - repeat it aloud'
-            : 'Press start when ready'}
-      </p>
+      <div className="flex flex-col items-center gap-1 pt-3">
+        <p className="sig-label text-sm text-[var(--color-accent)]">
+          {phase === 'speak' ? 'Your turn' : 'Listen'}
+        </p>
+        <p className="text-sm text-[var(--color-muted)]">
+          {phase === 'speak'
+            ? 'Repeat it while the bar runs out'
+            : 'Press play, then echo it back'}
+        </p>
+      </div>
 
-      <div className="overflow-hidden rounded-2xl border border-[var(--color-line)] bg-[var(--color-card)]">
-        <div className="h-1.5 w-full bg-[var(--color-accent)]" aria-hidden />
-        <div className="p-6 text-center">
-        <p className={`jp text-2xl font-bold leading-relaxed ${showText ? '' : 'blur-md select-none'}`}>
+      <div className="flex flex-col items-center gap-4">
+        {/* Drains only during your turn - it is a countdown for speaking, not a
+            progress bar for the audio. */}
+        <span className="flex h-1.5 w-full max-w-md overflow-hidden rounded-sm bg-[var(--color-line)]">
+          {phase === 'speak' && (
+            <span
+              key={runs}
+              className="gap-drain bg-[var(--color-here)]"
+              style={{ animationDuration: `${speakMs}ms` }}
+            />
+          )}
+        </span>
+
+        <p
+          className={`jp text-center text-2xl font-bold leading-relaxed sm:text-3xl ${
+            showText ? '' : 'select-none blur-md'
+          }`}
+        >
           {line.jp}
         </p>
         {showText && (
-          <p className="mt-2 text-sm text-[var(--color-muted)]">{line.reading}</p>
+          <>
+            <p className="jp text-center text-sm text-[var(--color-muted)]">{line.reading}</p>
+            <p className="text-center text-sm">{line.en}</p>
+          </>
         )}
-        <p className="mt-3 border-t border-dashed border-[var(--color-line)] pt-3 text-sm text-[var(--color-muted)]">
-          {line.en}
-        </p>
-        </div>
       </div>
 
-      <div className="flex gap-2">
-        <button
-          onClick={() => {
-            if (running) {
-              setRunning(false)
-              setPhase('idle')
-              cancel()
-            } else {
-              setRunning(true)
-            }
-          }}
-          className={`flex-1 rounded-xl py-3 font-bold ${
-            running
-              ? 'bg-[var(--color-ink)] text-white'
-              : 'bg-[var(--color-accent)] text-white'
-          }`}
-        >
-          {running ? 'Pause' : 'Start'}
-        </button>
-        <button
-          onClick={() => speak(line.jp, { rate })}
-          className="flex-1 rounded-lg border border-[var(--color-line)] py-3"
-        >
-          Replay
-        </button>
-      </div>
+      <div className="mt-auto space-y-4 pb-2">
+        <div aria-hidden className="h-px bg-[var(--color-line)]" />
 
-      <div className="flex flex-wrap justify-center gap-2">
-        {([0.6, 0.85, 1] as const).map((r) => (
+        <div className="flex items-center justify-center gap-7">
           <button
-            key={r}
-            onClick={() => setRate(r)}
-            className={`rounded-full border px-3 py-1 text-xs ${
-              rate === r
-                ? 'border-[var(--color-ink)] bg-[var(--color-ink)] text-[var(--color-card)]'
-                : 'border-[var(--color-line)]'
-            }`}
+            onClick={() => go(Math.max(0, index - 1))}
+            disabled={index === 0}
+            aria-label="Previous line"
+            className="text-3xl leading-none text-[var(--color-muted)] disabled:opacity-30"
           >
-            {r === 0.6 ? 'Slow' : r === 0.85 ? 'Normal' : 'Native'}
+            ‹
           </button>
-        ))}
-        <button
-          onClick={() => setShowText((v) => !v)}
-          className={`rounded-full border px-3 py-1 text-xs ${
-            showText
-              ? 'border-[var(--color-ink)] bg-[var(--color-ink)] text-[var(--color-card)]'
-              : 'border-[var(--color-line)]'
-          }`}
-        >
-          {showText ? 'Text: on' : 'Text: off'}
-        </button>
+          <button
+            onClick={phase === 'idle' ? run : stop}
+            aria-label={phase === 'idle' ? 'Play line' : 'Stop'}
+            className="flex h-[74px] w-[74px] items-center justify-center rounded-full bg-[var(--color-ink)] pl-1 text-2xl font-extrabold text-white active:scale-95"
+          >
+            {phase === 'idle' ? '▶' : '■'}
+          </button>
+          <button
+            onClick={() => go(Math.min(SHADOW_LINES.length - 1, index + 1))}
+            disabled={index === SHADOW_LINES.length - 1}
+            aria-label="Next line"
+            className="text-3xl leading-none text-[var(--color-muted)] disabled:opacity-30"
+          >
+            ›
+          </button>
+        </div>
+
+        <div className="flex flex-wrap justify-center gap-2">
+          {RATES.map(({ rate: r, label }) => (
+            <button
+              key={r}
+              onClick={() => setRate(r)}
+              aria-pressed={rate === r}
+              className={
+                rate === r
+                  ? 'rounded-full bg-[var(--color-ink)] px-4 py-2 text-sm font-bold text-white'
+                  : pill
+              }
+            >
+              {label}
+            </button>
+          ))}
+          {/* Not in the design, but shadowing with the text hidden is the point of
+              the exercise once a line is familiar - keeping it. */}
+          <button
+            onClick={() => setShowText((v) => !v)}
+            aria-pressed={!showText}
+            className={
+              showText
+                ? pill
+                : 'rounded-full bg-[var(--color-ink)] px-4 py-2 text-sm font-bold text-white'
+            }
+          >
+            {showText ? 'Text: on' : 'Text: off'}
+          </button>
+        </div>
       </div>
     </main>
   )
