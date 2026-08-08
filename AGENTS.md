@@ -25,6 +25,15 @@ These are not preferences. Breaking one breaks the product.
    `SpeechSynthesis` API - native OS text-to-speech, not audio files.
    In particular: **never use `next/font/google`**, it emits remote font refs.
 
+   The one deliberate exception is inside `public/sw.js`, which is the caching
+   layer rather than app code: **navigations are network-first**, falling back to
+   the cached shell when the fetch fails. Do not "restore" this to cache-first.
+   It was cache-first, and an installed copy then served the HTML it first saw
+   and never noticed a release - twice. Offline is unaffected either way, because
+   with no signal the fetch rejects at once and the cache answers. Hashed assets
+   stay cache-first; their URLs change with their contents, so they cannot go
+   stale.
+
 2. **`output: 'export'`.** Set in `next.config.ts` so that any accidental
    server dependency becomes a build error rather than a runtime surprise on
    the train. Do not remove it to make something work - report the conflict.
