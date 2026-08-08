@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest'
-import { reducer, initial, isNewCard, derivePhase, isSessionEnded, type State } from './page'
+import {
+  reducer,
+  initial,
+  isNewCard,
+  derivePhase,
+  isSessionEnded,
+  resolveCards,
+  type State,
+} from './page'
 import type { ProgressMap } from '@/lib/leitner'
 
 function cardProgress(overrides: Partial<ProgressMap[string]> = {}): ProgressMap[string] {
@@ -14,8 +22,40 @@ describe('reducer', () => {
       history: [],
       introduced: [],
       tally: { studied: 0, got: 0, missed: 0 },
+      missedIds: [],
       finished: false,
     })
+  })
+
+  it('graded records the id of a missed card so the summary can name it', () => {
+    const revealed: State = { ...initial, phase: 'revealed' }
+    const missed = reducer(revealed, { type: 'graded', correct: false, cardId: 'card-1' })
+    expect(missed.missedIds).toEqual(['card-1'])
+  })
+
+  it('graded records nothing extra for a correct answer', () => {
+    const revealed: State = { ...initial, phase: 'revealed' }
+    const got = reducer(revealed, { type: 'graded', correct: true, cardId: 'card-1' })
+    expect(got.missedIds).toEqual([])
+  })
+
+  it('graded keeps missed ids in the order they were missed', () => {
+    let state: State = initial
+    for (const id of ['a', 'b', 'c']) {
+      state = reducer({ ...state, phase: 'revealed' }, { type: 'graded', correct: id === 'b', cardId: id })
+    }
+    expect(state.missedIds).toEqual(['a', 'c'])
+  })
+
+  it('restart clears the whole session, unlike resume', () => {
+    const midSession = reducer(
+      { ...initial, phase: 'revealed' },
+      { type: 'graded', correct: false, cardId: 'card-1' },
+    )
+    const finished = reducer(midSession, { type: 'finish' })
+    // resume keeps the tally; restart throws the sitting away entirely.
+    expect(reducer(finished, { type: 'resume' }).tally.studied).toBe(1)
+    expect(reducer(finished, { type: 'restart' })).toEqual(initial)
   })
 
   it('type updates typed and leaves everything else untouched', () => {
@@ -189,5 +229,24 @@ describe('derivePhase', () => {
 
   it('never renders introduce over an already-revealed phase (defensive guard)', () => {
     expect(derivePhase(true, { ...initial, phase: 'revealed' })).toBe('revealed')
+  })
+})
+
+describe('resolveCards', () => {
+  const card = (id: string) => ({ id, jp: id }) as unknown as Parameters<typeof resolveCards>[1][number]
+  const all = [card('a'), card('b'), card('c')]
+
+  it('resolves frozen ids back to cards in the frozen order', () => {
+    expect(resolveCards(['c', 'a'], all).map((c) => c.id)).toEqual(['c', 'a'])
+  })
+
+  it('drops ids that no longer exist rather than yielding holes', () => {
+    // A card can vanish between sittings if the dataset is edited; the session
+    // should shrink, not render undefined.
+    expect(resolveCards(['a', 'gone', 'b'], all).map((c) => c.id)).toEqual(['a', 'b'])
+  })
+
+  it('returns nothing for an empty id list', () => {
+    expect(resolveCards([], all)).toEqual([])
   })
 })

@@ -1,5 +1,5 @@
 import { allUnits } from '@/lib/courses'
-import { UnitDrill } from '@/components/UnitDrill'
+import { LineBrowser } from '@/components/LineBrowser'
 
 // Static export requires every dynamic route to be enumerated at build time.
 // This runs on the server at build time - it has no access to progress
@@ -12,5 +12,7 @@ export function generateStaticParams() {
 
 export default async function UnitPage({ params }: { params: Promise<{ unit: string }> }) {
   const { unit: unitId } = await params
-  return <UnitDrill unitId={unitId} />
+  // The same browser as /units, opened on this station. It resolves the course
+  // from the unit id, so a link to another course's station still works.
+  return <LineBrowser initialUnitId={unitId} />
 }

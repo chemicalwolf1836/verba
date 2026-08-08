@@ -41,14 +41,15 @@ body {
   color: var(--color-ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
-  /* Center the app column vertically so short screens (home) sit in the middle of
-     a desktop viewport instead of stranded at the top. `safe` keeps tall screens
-     (a revealed study card, the 24-station browser) aligned to the top and fully
-     scrollable rather than clipped. */
+  /* Top-aligned, deliberately. This used to centre the app column vertically,
+     which read well when <main> was body's only child - but the platform header
+     is a sibling, so centring the group carried the nav down the page on any
+     screen shorter than the viewport. A header that floats halfway down is worse
+     than a short screen sitting high, and every screen now opens with a heading
+     that anchors it. Screens carry their own min-height where they want presence. */
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  justify-content: safe center;
 }
 
 /* Japanese glyphs get proportional metrics so a gothic kanji doesn't crowd the
@@ -119,6 +120,18 @@ body {
 /* Line segment between stations */
 .seg { height: 4px; border-radius: 2px; background: var(--color-accent); }
 .seg.pending { background: var(--color-line); }
+
+/* Audio playback bar. Width is animated rather than transitioned so that
+   re-keying the element restarts the fill from zero on every replay.
+   SpeechSynthesis reports no duration up front, so the span is sized from
+   lib/shadow's estimate - it indicates "audio is running", not exact position. */
+@keyframes audio-fill { from { width: 0 } to { width: 100% } }
+.audio-fill { animation: audio-fill linear forwards; }
+
+/* Shadowing's speaking window, draining rather than filling - it is a countdown
+   for your turn, not progress through the audio. */
+@keyframes gap-drain { from { width: 100% } to { width: 0 } }
+.gap-drain { animation: gap-drain linear forwards; }
 
 /* Focus visibility (quality floor) */
 a:focus-visible, button:focus-visible, input:focus-visible {

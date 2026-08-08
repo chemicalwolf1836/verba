@@ -59,8 +59,29 @@ business phrases. Each row carries an `origin` tag:
   band. **Unverified.** There is no official BJT word list; JETRO publishes
   none. Treat these as provisional and do not present them as authoritative.
 
+Cards may also carry an optional `hook` - a memory aid. It is deliberately
+sparse (a side map in `lib/courses/bjt.ts`, keyed by headword); a card without
+one omits the "Remember it" panel rather than showing filler.
+
 `lib/courses/bjt.test.ts` guards the dataset's shape - 192 cards, 8 per unit,
 unique ids, no empty fields. Run it after any data edit.
+
+## Pace vs scheduling
+
+Two separate concerns, deliberately in separate modules. `lib/leitner.ts`
+decides *which* card is most worth showing. `lib/session.ts` decides *how many*
+the learner is in the mood for today - length, whether new cards and/or reviews
+are in the queue, and whether typing is on. Pace never reaches into spaced
+repetition.
+
+The study screen **freezes the session pool** at the moment it starts, storing
+card ids. It has to: both the toggles and the length cap read progress, and
+progress changes on every grade, so a live pool would drop a card the instant it
+was answered correctly and move the finish line mid-session. The freeze reads
+`loadProgress()` directly rather than the render snapshot, which during
+hydration is still the empty server one.
+
+`?mode=weak` and `?unit=<id>` are already-scoped choices and skip the setup step.
 
 ## Progress vocabulary
 
@@ -70,16 +91,21 @@ a box comparison in a component - use the exported predicates.
 - **learned** = `box >= 2`, answered correctly at least once. Drives unit
   unlocking and pace projection.
 - **mastered** = `box === 5`. Drives the course mastery bar headline only.
+- **weak** = `box < 4` (`isWeak` in `lib/goals.ts`). Drives the Slipping list and
+  the weak drill. A third threshold on purpose - "words to shore up" must mean
+  cards that still need work, not just the bottom of the pile.
 
 ## Storage
 
-Three `localStorage` keys. Progress and activity are deliberately not
+Five `localStorage` keys. Progress and activity are deliberately not
 course-prefixed, because card ids already carry their course and one flat map
 holds every course's progress at once:
 
 - `trainer.progress.v1`
 - `trainer.activity.v1`
 - `trainer.course` - which course the user is studying (the active-course store)
+- `trainer.session.v1` - the session setup (length, queue toggles, answer mode)
+- `trainer.sound.v1` - sound on/off
 
 `localStorage` does not exist during server render. Read it via
 `useSyncExternalStore` with a server snapshot, never in a component body -
@@ -95,8 +121,9 @@ the scheduler, goals, routes, and PWA are all course-agnostic and need no change
 - **Unit ids are course-prefixed** (`bjt-w01`), like card ids, so two courses
   never collide on `/units/[unit]`. `unitIdFor` in each course file owns this.
 - **The active course** is read through `useActiveCourse()` on the home, study,
-  and unit-list screens. The unit drill instead derives its course from the URL
-  (`findUnit(unitId)`), so a link to any course's unit resolves correctly.
+  and unit-list screens. The line browser instead derives its course from the URL
+  (`findUnit(unitId)`) when opened on a station, so a link to any course's unit
+  resolves correctly.
 - **`CoursePicker` renders nothing while only one course is registered** - it
   appears automatically once a second course exists.
 

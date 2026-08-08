@@ -6,7 +6,7 @@ import type { CardProgress, ProgressMap } from '@/lib/leitner'
 
 /**
  * Minimal render harness (no @testing-library/react available offline), matching
- * the pattern used by components/UnitUnlockRing.test.tsx.
+ * the pattern used by the other component tests here.
  */
 function render(node: React.ReactElement) {
   const container = document.createElement('div')
@@ -15,10 +15,7 @@ function render(node: React.ReactElement) {
   act(() => {
     root.render(node)
   })
-  return {
-    container,
-    unmount: () => act(() => root.unmount()),
-  }
+  return { container, unmount: () => act(() => root.unmount()) }
 }
 
 const box = (n: CardProgress['box']): CardProgress => ({
@@ -35,30 +32,60 @@ beforeEach(() => {
   vi.resetModules()
 })
 
-describe('UnitDrill', () => {
+describe('LineBrowser rail', () => {
+  it('renders every station, locked ones included', async () => {
+    const course = getCourse(DEFAULT_COURSE_ID)!
+    const { LineBrowser } = await import('./LineBrowser')
+    const { container, unmount } = render(<LineBrowser />)
+    await act(async () => {})
+    expect(container.textContent).toContain(course.units[0].theme)
+    expect(container.textContent).toContain(course.units[23].theme)
+    unmount()
+  })
+
+  it('makes only unlocked stations selectable', async () => {
+    const { LineBrowser } = await import('./LineBrowser')
+    const { container, unmount } = render(<LineBrowser />)
+    await act(async () => {})
+    // Empty progress unlocks week 1 only, so exactly one station is a button.
+    const selectable = container.querySelectorAll('ol button')
+    expect(selectable).toHaveLength(1)
+    unmount()
+  })
+})
+
+describe('LineBrowser detail', () => {
   it('shows week 1 - always unlocked - even with no progress saved', async () => {
-    const { UnitDrill } = await import('./UnitDrill')
     const course = getCourse(DEFAULT_COURSE_ID)!
     const w1 = course.cards.filter((c) => c.unitId === 'bjt-w01')
-
-    const { container, unmount } = render(<UnitDrill unitId="bjt-w01" />)
-    expect(container.textContent).not.toContain('Locked')
+    const { LineBrowser } = await import('./LineBrowser')
+    const { container, unmount } = render(<LineBrowser initialUnitId="bjt-w01" />)
+    await act(async () => {})
+    expect(container.textContent).not.toContain('Locked - finish')
     for (const c of w1) expect(container.textContent).toContain(c.jp)
     unmount()
   })
 
-  it('refuses to drill week 2 while week 1 has not crossed unlockedUnits\' threshold - a direct URL visit must not leak the cards', async () => {
-    const { UnitDrill } = await import('./UnitDrill')
+  it("refuses to open week 2 while week 1 has not crossed unlockedUnits' threshold - a direct URL visit must not leak the cards", async () => {
     const course = getCourse(DEFAULT_COURSE_ID)!
     const w2 = course.cards.filter((c) => c.unitId === 'bjt-w02')
-
-    const { container, unmount } = render(<UnitDrill unitId="bjt-w02" />)
+    const { LineBrowser } = await import('./LineBrowser')
+    const { container, unmount } = render(<LineBrowser initialUnitId="bjt-w02" />)
+    await act(async () => {})
     expect(container.textContent).toContain('Locked - finish the previous week first.')
     for (const c of w2) expect(container.textContent).not.toContain(c.jp)
     unmount()
   })
 
-  it('shows week 2 once week 1 crosses unlockedUnits\' threshold - the same gate the browser uses, not a locally recomputed one', async () => {
+  it('offers no drill link for a locked station', async () => {
+    const { LineBrowser } = await import('./LineBrowser')
+    const { container, unmount } = render(<LineBrowser initialUnitId="bjt-w02" />)
+    await act(async () => {})
+    expect(container.querySelector('a[href^="/study?unit="]')).toBeNull()
+    unmount()
+  })
+
+  it("shows week 2 once week 1 crosses unlockedUnits' threshold - the same gate the rail uses, not a locally recomputed one", async () => {
     const { saveProgress } = await import('@/lib/progress')
     const course = getCourse(DEFAULT_COURSE_ID)!
     const w1cards = course.cards.filter((c) => c.unitId === 'bjt-w01')
@@ -68,23 +95,26 @@ describe('UnitDrill', () => {
     )
     saveProgress(progress)
 
-    const { UnitDrill } = await import('./UnitDrill')
+    const { LineBrowser } = await import('./LineBrowser')
     const w2 = course.cards.filter((c) => c.unitId === 'bjt-w02')
-    const { container, unmount } = render(<UnitDrill unitId="bjt-w02" />)
-    expect(container.textContent).not.toContain('Locked')
+    const { container, unmount } = render(<LineBrowser initialUnitId="bjt-w02" />)
+    await act(async () => {})
+    expect(container.textContent).not.toContain('Locked - finish')
     for (const c of w2) expect(container.textContent).toContain(c.jp)
+    expect(container.querySelector('a[href="/study?unit=bjt-w02"]')).not.toBeNull()
     unmount()
   })
 
   it('renders nothing for an id generateStaticParams never produced, rather than throwing', async () => {
-    const { UnitDrill } = await import('./UnitDrill')
-    const { container, unmount } = render(<UnitDrill unitId="does-not-exist" />)
+    const { LineBrowser } = await import('./LineBrowser')
+    const { container, unmount } = render(<LineBrowser initialUnitId="does-not-exist" />)
+    await act(async () => {})
     expect(container.textContent).toBe('')
     unmount()
   })
 
-  // UnitDrill now resolves its course from the unit id via findUnit, so a
-  // non-Week course can be exercised by mocking findUnit to return a fake course.
+  // The browser resolves its course from the unit id via findUnit, so a non-Week
+  // course can be exercised by mocking findUnit to return a fake course.
   it('uses the course unitLabel - not a hardcoded "week" - for the locked hint and the back link', async () => {
     const fakeCourse = {
       id: 'fake',
@@ -116,12 +146,16 @@ describe('UnitDrill', () => {
         const unit = fakeCourse.units.find((u) => u.id === unitId)
         return unit ? { course: fakeCourse, unit } : undefined
       },
+      getCourse: () => fakeCourse,
+      DEFAULT_COURSE_ID: 'fake',
+      COURSES: [fakeCourse],
     }))
 
     try {
-      const { UnitDrill } = await import('./UnitDrill')
-      const { container, unmount } = render(<UnitDrill unitId="fake-u02" />)
-      expect(container.textContent).toContain('Back to sets')
+      const { LineBrowser } = await import('./LineBrowser')
+      const { container, unmount } = render(<LineBrowser initialUnitId="fake-u02" />)
+      await act(async () => {})
+      expect(container.textContent).toContain('All sets')
       expect(container.textContent).toContain('Locked - finish the previous set first.')
       expect(container.textContent).not.toContain('week')
       unmount()

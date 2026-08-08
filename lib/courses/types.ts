@@ -19,6 +19,12 @@ export type Card = {
   meaning: string
   exampleJp?: string
   exampleEn?: string
+  /**
+   * A memory hook - how the kanji or the shape of the word gives away its
+   * meaning. Optional and deliberately sparse: a card without one simply omits
+   * the panel, which is better than padding every row with a filler mnemonic.
+   */
+  hook?: string
   theme: string
   origin: Origin
 }

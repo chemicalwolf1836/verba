@@ -1,18 +1,24 @@
 'use client'
 
-import { Suspense, useEffect, useMemo, useReducer, useRef } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { CardStage } from '@/components/CardStage'
+import { SessionSetup } from '@/components/SessionSetup'
+import { SessionSummary } from '@/components/SessionSummary'
 import { SoundToggle } from '@/components/SoundToggle'
+import { StudyProgress } from '@/components/StudyProgress'
 import { UnitUnlockRing } from '@/components/UnitUnlockRing'
 import { VoiceWarning } from '@/components/VoiceWarning'
 import { matchesAnswer } from '@/lib/answer'
 import { type Card } from '@/lib/courses'
-import { currentUnitGoal, drillPool } from '@/lib/goals'
+import { currentUnitGoal, drillPool, unitPool } from '@/lib/goals'
 import { nextCard, unlockedUnits, type ProgressMap } from '@/lib/leitner'
+import { loadProgress } from '@/lib/progress'
+import { countNew, countReviews, sessionPool } from '@/lib/session'
 import { playSfx } from '@/lib/sfx'
-import { useActiveCourse, useProgress } from '@/lib/useProgress'
+import { cancel } from '@/lib/speech'
+import { useActiveCourse, useProgress, useSession } from '@/lib/useProgress'
 
 export type Phase = 'introduce' | 'prompt' | 'revealed'
 
@@ -27,6 +33,9 @@ export type State = {
    */
   introduced: string[]
   tally: { studied: number; got: number; missed: number }
+  /** Ids graded wrong, in order. The summary lists these back as "shaky"; the
+   *  tally alone only knows how many, not which. */
+  missedIds: string[]
   /** True once the user has ended the session - renders the summary instead of a card. */
   finished: boolean
 }
@@ -38,6 +47,7 @@ export type Action =
   | { type: 'continue'; cardId: string }
   | { type: 'finish' }
   | { type: 'resume' }
+  | { type: 'restart' }
 
 export const initial: State = {
   phase: 'prompt',
@@ -45,6 +55,7 @@ export const initial: State = {
   history: [],
   introduced: [],
   tally: { studied: 0, got: 0, missed: 0 },
+  missedIds: [],
   finished: false,
 }
 
@@ -66,6 +77,10 @@ export function reducer(state: State, action: Action): State {
       return { ...state, finished: true }
     case 'resume':
       return { ...state, finished: false }
+    // A fresh sitting on a newly-built pool. Distinct from 'resume', which returns
+    // to the same session with its tally intact.
+    case 'restart':
+      return initial
     case 'continue':
       // An introduced card is not graded - it re-enters the queue as a real prompt.
       return {
@@ -81,6 +96,7 @@ export function reducer(state: State, action: Action): State {
         phase: 'prompt',
         typed: '',
         history: [...state.history, action.cardId],
+        missedIds: action.correct ? state.missedIds : [...state.missedIds, action.cardId],
         tally: {
           studied: state.tally.studied + 1,
           got: state.tally.got + (action.correct ? 1 : 0),
@@ -122,13 +138,62 @@ export function isSessionEnded(state: State, hasCard: boolean): boolean {
   return state.tally.studied > 0 && (state.finished || !hasCard)
 }
 
+/** Resolve frozen session ids back to cards, dropping any that no longer exist. */
+export function resolveCards(ids: string[], all: Card[]): Card[] {
+  const byId = new Map(all.map((c) => [c.id, c]))
+  return ids.map((id) => byId.get(id)).filter((c): c is Card => c !== undefined)
+}
+
 function StudySession() {
   const { course } = useActiveCourse()
   const { progress, gradeCard } = useProgress()
+  const { session, setSession } = useSession()
   const [state, dispatch] = useReducer(reducer, initial)
 
-  const mode = useSearchParams().get('mode')
-  const pool = useMemo(() => drillPool(course, progress, mode), [course, progress, mode])
+  const params = useSearchParams()
+  const mode = params.get('mode')
+  const unitId = params.get('unit')
+  // Both of these arrive already scoped by a deliberate choice - a weak drill or
+  // a single station - so neither stops to ask how long the learner has.
+  const isWeakDrill = mode === 'weak'
+  const isScoped = isWeakDrill || unitId !== null
+
+  /**
+   * The session's pool, frozen at the moment it starts.
+   *
+   * It has to be frozen. Both the toggles and the length cap are computed from
+   * progress, and progress changes on every grade - so a live pool would let a
+   * card drop out mid-session the instant it was answered correctly, quietly
+   * pulling a different word in behind it and moving the finish line. Freezing
+   * the ids makes "6 words" mean the same six words from start to end.
+   */
+  const [sessionIds, setSessionIds] = useState<string[] | null>(null)
+  const [startedAt, setStartedAt] = useState(0)
+
+  const start = useCallback(() => {
+    // Read storage directly rather than trusting the render snapshot. During
+    // hydration useSyncExternalStore still reports the empty server snapshot, and
+    // freezing a pool off that would pick the wrong cards for a weak drill.
+    const current = loadProgress()
+    const base = unitId
+      ? unitPool(course, current, unitId)
+      : drillPool(course, current, mode)
+    const chosen = isScoped ? base : sessionPool(base, current, session)
+    setSessionIds(chosen.map((c) => c.id))
+    setStartedAt(Date.now())
+    dispatch({ type: 'restart' })
+  }, [course, mode, unitId, isScoped, session])
+
+  useEffect(() => {
+    if (isScoped && sessionIds === null) start()
+  }, [isScoped, sessionIds, start])
+
+  const setupPool = useMemo(() => drillPool(course, progress, null), [course, progress])
+  const pool = useMemo(
+    () => (sessionIds === null ? [] : resolveCards(sessionIds, course.cards)),
+    [sessionIds, course],
+  )
+
   const goal = useMemo(() => currentUnitGoal(course, progress), [course, progress])
   const unlockedCount = useMemo(() => unlockedUnits(course, progress).length, [course, progress])
   const prevUnlocked = useRef(unlockedCount)
@@ -140,6 +205,7 @@ function StudySession() {
     if (state.tally.studied > 0 && unlockedCount > prevUnlocked.current) playSfx('unlock')
     prevUnlocked.current = unlockedCount
   }, [unlockedCount, state.tally.studied])
+
   const card: Card | null = useMemo(
     () => nextCard(pool, progress, state.history),
     [pool, progress, state.history],
@@ -147,46 +213,85 @@ function StudySession() {
 
   const isNew = isNewCard(card, progress, state)
   const phase: Phase = derivePhase(isNew, state)
-
-  // Distinct from the "no card was ever available" state below, which never had a
-  // session to summarise.
   const sessionEnded = isSessionEnded(state, card !== null)
 
-  if (sessionEnded) {
-    const { studied, got } = state.tally
+  const onGrade = useCallback(
+    (correct: boolean) => {
+      if (!card) return
+      playSfx(correct ? 'correct' : 'incorrect')
+      gradeCard(card.id, correct)
+      dispatch({ type: 'graded', correct, cardId: card.id })
+    },
+    [card, gradeCard],
+  )
+
+  const onReveal = useCallback(() => {
+    playSfx('reveal')
+    dispatch({ type: 'reveal', isNew })
+  }, [isNew])
+
+  // Keyboard shortcuts. Every one bails while an input has focus - the answer box
+  // takes romaji, so 'r', '1' and space are all legitimate keystrokes there.
+  const active = sessionIds !== null && !sessionEnded && card !== null
+  useEffect(() => {
+    if (!active) return
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement | null)?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return
+      if (e.key === ' ') {
+        if (phase !== 'prompt') return
+        e.preventDefault()
+        onReveal()
+      } else if (phase === 'revealed' && (e.key === '1' || e.key === '2')) {
+        e.preventDefault()
+        onGrade(e.key === '2')
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [active, phase, onReveal, onGrade])
+
+  // Swipe to grade, revealed only: right = knew it, left = not yet.
+  const swipeFrom = useRef<number | null>(null)
+  const onPointerDown = (e: React.PointerEvent) => {
+    swipeFrom.current = e.clientX
+  }
+  const onPointerUp = (e: React.PointerEvent) => {
+    const from = swipeFrom.current
+    swipeFrom.current = null
+    if (from === null || phase !== 'revealed') return
+    const dx = e.clientX - from
+    if (Math.abs(dx) > 70) onGrade(dx > 0)
+  }
+
+  if (sessionIds === null) {
+    // The scoped-drill effect freezes its pool on mount; rendering setup for that
+    // one frame would flash a screen the learner never asked for.
+    if (isScoped) return null
     return (
-      <main className="mx-auto max-w-lg px-4 py-12 text-center">
-        <p className="sig-label text-xs text-[var(--color-muted)]">Terminus</p>
-        <span className="mx-auto mt-4 grid h-14 w-14 place-items-center rounded-full bg-[var(--color-accent)] text-2xl text-white">
-          ✓
-        </span>
-        <h1 className="mt-4 text-2xl font-bold">Session complete</h1>
-        <p className="mt-3 text-lg">
-          You studied {studied} card{studied === 1 ? '' : 's'}.
-        </p>
-        <p className="mt-1 tabular-nums text-[var(--color-muted)]">
-          Got {got} of {studied}.
-        </p>
-        <div className="mt-7 flex justify-center gap-3">
-          {card && (
-            // Only offered when a card is actually waiting - if the queue itself is
-            // empty there is nothing to resume into, and offering the button would
-            // just redisplay this same summary.
-            <button
-              onClick={() => dispatch({ type: 'resume' })}
-              className="rounded-xl bg-[var(--color-accent)] px-5 py-2.5 font-bold text-white"
-            >
-              Keep studying ▸
-            </button>
-          )}
-          <Link
-            href="/"
-            className="rounded-xl border border-[var(--color-line)] bg-[var(--color-card)] px-5 py-2.5 font-semibold"
-          >
-            Back home
-          </Link>
-        </div>
-      </main>
+      <SessionSetup
+        config={session}
+        onChange={setSession}
+        onStart={start}
+        newCount={countNew(setupPool, progress)}
+        reviewCount={countReviews(setupPool, progress)}
+        unitTitle={goal ? `${course.unitLabel} ${goal.unit.index} - ${goal.unit.theme}` : course.name}
+      />
+    )
+  }
+
+  if (sessionEnded) {
+    return (
+      <SessionSummary
+        tally={state.tally}
+        shaky={resolveCards(state.missedIds, course.cards)}
+        startedAt={startedAt}
+        goal={goal}
+        unitLabel={course.unitLabel}
+        canResume={card !== null}
+        onResume={() => dispatch({ type: 'resume' })}
+        onAgain={start}
+      />
     )
   }
 
@@ -206,49 +311,40 @@ function StudySession() {
   }
 
   return (
-    <main className="mx-auto max-w-lg px-4 py-6">
-      <header className="mb-4 flex items-center justify-between text-sm text-[var(--color-muted)]">
-        <span className="tabular-nums">
-          {state.tally.studied} studied · {state.tally.got} got
-        </span>
-        <div className="flex items-center gap-3">
-          <SoundToggle />
-          <Link
-            href="/"
-            className="sig-label rounded-full border border-[var(--color-line)] px-3 py-1 text-[11px]"
-            onClick={(e) => {
-              // Zero cards studied: Finish just navigates home like a plain link -
-              // no fake "session complete" screen for a session that never happened.
-              if (state.tally.studied === 0) return
-              e.preventDefault()
-              dispatch({ type: 'finish' })
-            }}
-          >
-            Finish
-          </Link>
-        </div>
-      </header>
+    <main
+      onPointerDown={onPointerDown}
+      onPointerUp={onPointerUp}
+      className="mx-auto flex min-h-[38rem] w-full max-w-xl flex-col gap-4 px-4 py-5 [touch-action:pan-y]"
+    >
+      <StudyProgress
+        position={Math.min(state.tally.studied + 1, pool.length)}
+        total={pool.length}
+        got={state.tally.got}
+        missed={state.tally.missed}
+        onEnd={() => {
+          cancel()
+          dispatch({ type: 'finish' })
+        }}
+      />
+
+      <div className="flex items-center justify-between">
+        <VoiceWarning />
+        <SoundToggle />
+      </div>
 
       {goal && <UnitUnlockRing goal={goal} unitLabel={course.unitLabel} />}
-
-      <VoiceWarning />
 
       <CardStage
         card={card}
         phase={phase}
         typed={state.typed}
         matched={matchesAnswer(state.typed, card)}
+        answerMode={session.answerMode}
+        box={progress[card.id]?.box ?? 1}
         onType={(value) => dispatch({ type: 'type', value })}
-        onReveal={() => {
-          playSfx('reveal')
-          dispatch({ type: 'reveal', isNew })
-        }}
+        onReveal={onReveal}
         onContinue={() => dispatch({ type: 'continue', cardId: card.id })}
-        onGrade={(correct) => {
-          playSfx(correct ? 'correct' : 'incorrect')
-          gradeCard(card.id, correct)
-          dispatch({ type: 'graded', correct, cardId: card.id })
-        }}
+        onGrade={onGrade}
       />
     </main>
   )
