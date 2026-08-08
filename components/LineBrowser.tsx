@@ -47,20 +47,14 @@ export function LineBrowser({ initialUnitId }: Props) {
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-6 lg:px-6">
-      {/* On lg the two panes share one viewport-height frame and scroll
-          independently, rather than the rail growing the page. A unit is always
-          about eight words while a course is twenty-odd units, so a page-height
-          rail will always outrun its detail pane - by 623px here. Fixing the
-          frame makes that ratio irrelevant: an 18-week course and a 40-week one
-          both fill exactly the same box. Below lg nothing is constrained, since
-          the panes are never side by side there. */}
-      <div className="grid gap-0 lg:h-[calc(100dvh-7rem)] lg:grid-cols-[19rem_minmax(0,1fr)] lg:gap-10">
+      {/* The rail grows the page rather than scrolling inside a fixed frame, so
+          on a long course it runs well past the detail pane. That was tried the
+          other way - both panes in one viewport-height frame - and reverted by
+          preference: the page-scrolling version keeps the whole line reachable
+          by ordinary scrolling. */}
+      <div className="grid gap-0 lg:grid-cols-[19rem_minmax(0,1fr)] lg:gap-10">
         {/* ---- rail ---- */}
-        <div
-          className={`min-w-0 space-y-4 lg:overflow-y-auto lg:pr-3 ${
-            selected ? 'hidden lg:block' : ''
-          }`}
-        >
+        <div className={`min-w-0 space-y-4 ${selected ? 'hidden lg:block' : ''}`}>
           <Link href="/" className="text-sm font-bold text-[var(--color-muted)] lg:hidden">
             ‹ Back
           </Link>
@@ -83,7 +77,7 @@ export function LineBrowser({ initialUnitId }: Props) {
         <div
           className={`min-w-0 ${
             selected ? '' : 'hidden lg:block'
-          } lg:overflow-y-auto lg:border-l lg:border-[var(--color-line)] lg:pl-10`}
+          } lg:border-l lg:border-[var(--color-line)] lg:pl-10`}
         >
           {detail && (
             <UnitDetail
