@@ -1,6 +1,10 @@
 // Hand-written rather than next-pwa: that plugin lags Next releases, and a service
 // worker you cannot read is not debuggable on a train with no signal.
-const CACHE = 'verba-v1'
+// Bump this on any release that changes the shell. The fetch handler is
+// cache-first with no revalidation, and activate only deletes caches whose key
+// differs from this one - so an unchanged key means an installed copy serves the
+// previous build's HTML and chunks forever, and never sees the new release.
+const CACHE = 'verba-v2'
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
