@@ -108,10 +108,16 @@ async function lifecycle(h: Harness, type: 'install' | 'activate') {
   await waited
 }
 
-async function request(h: Harness, r: Req) {
+/** Hands back the promise the worker passed to respondWith, without awaiting it -
+ *  needed for the timeout tests, which must advance the clock while it is pending. */
+function respondTo(h: Harness, r: Req): Promise<Response> | undefined {
   let responded: Promise<Response> | undefined
   h.handlers.fetch({ request: r, respondWith: (p: Promise<Response>) => (responded = p) })
   return responded
+}
+
+async function request(h: Harness, r: Req) {
+  return respondTo(h, r)
 }
 
 /** Serves anything except the paths listed as missing. */
@@ -207,6 +213,80 @@ describe('service worker - navigations are network-first', () => {
     off.caches._seed(CACHE_NAME, '/', html('SHELL'))
     const res = await request(off, page('/units/bjt-w07'))
     expect(await res!.text()).toBe('SHELL')
+  })
+})
+
+describe('service worker - a slow network does not hang the page', () => {
+  /** Read from the source so retuning the timeout doesn't break these. */
+  const TIMEOUT = Number(/const NETWORK_TIMEOUT_MS = (\d+)/.exec(SRC)![1])
+
+  /** A fetch that never settles - a tunnel, not an offline device. */
+  const stalls = () => vi.fn(() => new Promise<Response>(() => {}))
+
+  it('gives up on the network and serves the cached page', async () => {
+    vi.useFakeTimers()
+    try {
+      const h = load(stalls())
+      h.caches._seed(CACHE_NAME, '/units', html('CACHED PAGE'))
+      const pending = respondTo(h, page('/units'))
+      await vi.advanceTimersByTimeAsync(TIMEOUT)
+      expect(await (await pending)!.text()).toBe('CACHED PAGE')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('waits for the network rather than answering from cache too eagerly', async () => {
+    // Before the timeout elapses the request is still outstanding - the cache
+    // must not pre-empt a network that is merely a little slow.
+    vi.useFakeTimers()
+    try {
+      const h = load(stalls())
+      h.caches._seed(CACHE_NAME, '/units', html('CACHED PAGE'))
+      const pending = respondTo(h, page('/units'))
+      let settled = false
+      void pending!.then(() => (settled = true))
+      await vi.advanceTimersByTimeAsync(TIMEOUT - 1)
+      expect(settled).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('still refreshes the cache when a slow response finally lands', async () => {
+    // Otherwise a permanently slow connection would never see a new release -
+    // the same staleness this strategy exists to remove, reached another way.
+    vi.useFakeTimers()
+    try {
+      let land: (r: Response) => void = () => {}
+      const late = vi.fn(() => new Promise<Response>((res) => (land = res)))
+      const h = load(late)
+      h.caches._seed(CACHE_NAME, '/units', html('CACHED PAGE'))
+      const pending = respondTo(h, page('/units'))
+      await vi.advanceTimersByTimeAsync(TIMEOUT)
+      expect(await (await pending)!.text()).toBe('CACHED PAGE')
+
+      land(html('LATE NETWORK'))
+      await vi.advanceTimersByTimeAsync(0)
+      const cached = await h.caches.match('/units')
+      expect(await cached!.text()).toBe('LATE NETWORK')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('does not time out assets, which are cache-first anyway', async () => {
+    vi.useFakeTimers()
+    try {
+      const h = load(stalls())
+      const pending = respondTo(h, req('/_next/static/chunks/slow.js'))
+      let settled = false
+      void pending!.then(() => (settled = true))
+      await vi.advanceTimersByTimeAsync(TIMEOUT * 2)
+      expect(settled).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
 

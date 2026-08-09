@@ -30,12 +30,48 @@ self.addEventListener('activate', (event) => {
   self.clients.claim()
 })
 
+/**
+ * How long to wait for the network before giving up on it and using the cache.
+ *
+ * Fully offline already fails instantly - there is no network stack to try. This
+ * is for the case in between, which is the one this app actually lives in: a
+ * tunnel, one bar, a captive portal. Without it, network-first turns a stale page
+ * into a hanging one, which is worse.
+ */
+const NETWORK_TIMEOUT_MS = 3000
+
 /** Store a copy without making the response wait on the write. */
 function keep(request, response) {
   if (!response.ok) return response
   const copy = response.clone()
   caches.open(CACHE).then((cache) => cache.put(request, copy))
   return response
+}
+
+/**
+ * The network, but it stops being worth waiting for after NETWORK_TIMEOUT_MS.
+ *
+ * A response that arrives after the timeout still refreshes the cache. That is
+ * the part worth keeping: on a connection that is always slow, abandoning the
+ * late response outright would mean the shell never updated - the same staleness
+ * bug this strategy exists to remove, just arrived at from a different direction.
+ */
+function fromNetwork(request) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('network timeout')), NETWORK_TIMEOUT_MS)
+    fetch(request).then(
+      (res) => {
+        clearTimeout(timer)
+        // keep() caches and hands the response back. If the timeout already won,
+        // this resolve is ignored - but the cache write has still happened.
+        resolve(keep(request, res))
+      },
+      (err) => {
+        clearTimeout(timer)
+        reject(err)
+      },
+    )
+  })
 }
 
 self.addEventListener('fetch', (event) => {
@@ -52,9 +88,9 @@ self.addEventListener('fetch', (event) => {
   // cached shell answers, which is the case this app exists for.
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request)
-        .then((res) => keep(event.request, res))
-        .catch(() => caches.match(event.request).then((hit) => hit ?? caches.match('/'))),
+      fromNetwork(event.request).catch(() =>
+        caches.match(event.request).then((hit) => hit ?? caches.match('/')),
+      ),
     )
     return
   }
