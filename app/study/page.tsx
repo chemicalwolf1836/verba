@@ -327,8 +327,13 @@ function StudySession() {
         }}
       />
 
-      <div className="flex items-center justify-between">
-        <VoiceWarning />
+      {/* Separate rows on purpose. These used to share a justify-between row,
+          but VoiceWarning renders nothing whenever a Japanese voice is present -
+          which is the normal case - and a lone child under justify-between sits
+          left. The toggle drifted depending on whether a warning happened to be
+          showing. */}
+      <VoiceWarning />
+      <div className="flex justify-end">
         <SoundToggle />
       </div>
 
