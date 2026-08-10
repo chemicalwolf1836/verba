@@ -9,6 +9,7 @@ import { RouteStrip } from '@/components/RouteStrip'
 import { StationList } from '@/components/StationList'
 import { StreakHeatmap } from '@/components/StreakHeatmap'
 import { WeakWords } from '@/components/WeakWords'
+import { boardName } from '@/lib/courses'
 import { SHADOW_LINES } from '@/lib/courses/shadow'
 import { currentUnitGoal, isWeak } from '@/lib/goals'
 import { unlockedCards, unlockedUnits } from '@/lib/leitner'
@@ -83,8 +84,18 @@ export default function Home() {
             <span className="roundel on-board" style={{ ['--rd' as string]: 'var(--color-here)' }}>
               {course.code}
             </span>
-            <span className="lab">{course.name}</span>
-            <span className="nxt">Bound for · {course.target}</span>
+            {/* Without the code, which the roundel to its left already carries. */}
+            <span className="lab">{boardName(course)}</span>
+            {/* "Bound for · 400" costs 103px of a 343px board, which is what
+                truncates the name on a narrow phone even after the code is
+                dropped. Below sm it collapses to the same arrow form the desktop
+                header uses, keeping the destination without the words. */}
+            <span className="nxt">
+              <span className="hidden sm:inline">Bound for · </span>
+              <span aria-hidden className="sm:hidden">→ </span>
+              <span className="sr-only sm:hidden">Bound for </span>
+              {course.target}
+            </span>
           </header>
 
           <div className="space-y-2">

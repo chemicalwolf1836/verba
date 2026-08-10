@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { allUnits, findUnit, getCourse, COURSES, DEFAULT_COURSE_ID } from './index'
+import { allUnits, boardName, findUnit, getCourse, COURSES, DEFAULT_COURSE_ID } from './index'
 
 describe('unit ids are course-prefixed', () => {
   it('every BJT unit id starts with the course id, so two courses cannot collide', () => {
@@ -40,5 +40,39 @@ describe('findUnit', () => {
 
   it('returns undefined for an id no course owns', () => {
     expect(findUnit('no-such-unit')).toBeUndefined()
+  })
+})
+
+describe('boardName', () => {
+  it('drops a leading course code, which the roundel beside it already shows', () => {
+    expect(boardName({ code: 'BJT', name: 'BJT - Business Japanese' })).toBe('Business Japanese')
+  })
+
+  it('accepts the separators a course file might plausibly use', () => {
+    for (const sep of ['-', '–', '—', ':', '·']) {
+      expect(boardName({ code: 'N2', name: `N2 ${sep} JLPT Level 2` })).toBe('JLPT Level 2')
+    }
+  })
+
+  it('ignores case and tolerates missing spaces', () => {
+    expect(boardName({ code: 'BJT', name: 'bjt-Business Japanese' })).toBe('Business Japanese')
+  })
+
+  it('leaves a name alone when the prefix is not this course’s code', () => {
+    // Only the course's own code is stripped - a name that merely starts with a
+    // word must survive intact.
+    expect(boardName({ code: 'N2', name: 'BJT - Business Japanese' })).toBe(
+      'BJT - Business Japanese',
+    )
+    expect(boardName({ code: 'BJT', name: 'Business Japanese' })).toBe('Business Japanese')
+  })
+
+  it('does not strip a code that is only part of a longer first word', () => {
+    expect(boardName({ code: 'N2', name: 'N2000 - Something' })).toBe('N2000 - Something')
+  })
+
+  it('never returns an empty label', () => {
+    // A name that is only the code has nothing to strip down to.
+    expect(boardName({ code: 'BJT', name: 'BJT' })).toBe('BJT')
   })
 })
