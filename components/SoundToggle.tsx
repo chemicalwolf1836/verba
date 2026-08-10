@@ -43,7 +43,12 @@ function Segment({
       onClick={onSelect}
       aria-pressed={selected}
       aria-label={on ? 'Sound effects on' : 'Sound effects off'}
-      className={`rounded-full px-[11px] py-[5px] leading-none ${
+      // The drawn segment is 40x28, which is fine to look at and too small to
+      // hit: a thumb that misses does not do nothing here, it silently flips a
+      // setting. The pseudo-element grows the touch area to 44 tall without
+      // changing the layout. Vertical only - the two segments are contiguous, so
+      // widening them would just overlap each other's targets.
+      className={`relative rounded-full px-[11px] py-[5px] leading-none after:absolute after:inset-x-0 after:-inset-y-2 after:content-[''] ${
         selected
           ? 'bg-[var(--color-ink)] text-[var(--color-card)]'
           : 'text-[var(--color-muted)] hover:text-[var(--color-ink)]'
