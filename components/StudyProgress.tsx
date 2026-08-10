@@ -7,6 +7,10 @@ type Props = {
   got: number
   missed: number
   onEnd: () => void
+  /** Sits beside End, which is the other control that acts on the sitting rather
+   *  than on the card in front of you. The row is two thirds empty, so anything
+   *  put here costs no vertical space. */
+  trailing?: React.ReactNode
 }
 
 const pct = (n: number, d: number) => `${d > 0 ? Math.round((n / d) * 100) : 0}%`
@@ -17,17 +21,18 @@ const pct = (n: number, d: number) => `${d > 0 ? Math.round((n / d) * 100) : 0}%
  * single fill would say only "how far through", which is the least interesting
  * of the three.
  */
-export function StudyProgress({ position, total, got, missed, onEnd }: Props) {
+export function StudyProgress({ position, total, got, missed, onEnd, trailing }: Props) {
   return (
     <div className="space-y-2.5">
-      <div className="flex items-baseline gap-2.5">
+      <div className="flex items-center gap-2.5">
         <span className="text-sm font-extrabold tabular-nums">
           {position} <span className="font-semibold text-[var(--color-muted)]">of {total}</span>
         </span>
         <span className="text-sm text-[var(--color-muted)]">· {got} right</span>
+        {trailing && <span className="ml-auto">{trailing}</span>}
         <button
           onClick={onEnd}
-          className="ml-auto text-sm font-bold text-[var(--color-muted)]"
+          className={`text-sm font-bold text-[var(--color-muted)] ${trailing ? '' : 'ml-auto'}`}
         >
           End
         </button>

@@ -325,17 +325,16 @@ function StudySession() {
           cancel()
           dispatch({ type: 'finish' })
         }}
+        // Below lg it rides in this row, next to End. At lg the platform header
+        // carries it instead - see AppNav - so only one is ever on screen.
+        trailing={
+          <span className="lg:hidden">
+            <SoundToggle />
+          </span>
+        }
       />
 
-      {/* Separate rows on purpose. These used to share a justify-between row,
-          but VoiceWarning renders nothing whenever a Japanese voice is present -
-          which is the normal case - and a lone child under justify-between sits
-          left. The toggle drifted depending on whether a warning happened to be
-          showing. */}
       <VoiceWarning />
-      <div className="flex justify-end">
-        <SoundToggle />
-      </div>
 
       {goal && <UnitUnlockRing goal={goal} unitLabel={course.unitLabel} />}
 

@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { SoundToggle } from '@/components/SoundToggle'
 import { useActiveCourse } from '@/lib/useProgress'
 
 const LINKS = [
@@ -32,7 +33,18 @@ export function AppNav() {
           <span className="text-[var(--color-muted)]">{course.target}</span>
         </span>
 
-        <nav className="ml-auto flex gap-5 text-sm font-bold">
+        {/* Only while studying. The chimes it governs are dispatched from the
+            study screen and nowhere else, so carrying it across the whole app
+            would put a dead control on two screens out of three. */}
+        {pathname === '/study' && (
+          <span className="ml-auto">
+            <SoundToggle />
+          </span>
+        )}
+
+        <nav
+          className={`flex gap-5 text-sm font-bold ${pathname === '/study' ? 'ml-5' : 'ml-auto'}`}
+        >
           {LINKS.map(({ href, label }) => {
             // '/' would prefix-match everything, so it is compared exactly.
             const active = href === '/' ? pathname === '/' : pathname.startsWith(href)
