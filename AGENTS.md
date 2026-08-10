@@ -150,5 +150,21 @@ npm run build   # static export to out/ - a real gate, not a formality
 npm test        # vitest
 ```
 
-Never run `npx vercel` or any deploy command without being asked. Deploys are
-human-gated in this project.
+## Deploying
+
+**The Vercel project is connected to GitHub, so pushing to `main` deploys to
+production.** `git push` is the deploy. There is no separate staging step and no
+manual promotion - the live site at https://verbaapp.vercel.app follows `main`
+within about a minute.
+
+This has two consequences worth stating plainly:
+
+- **Do not push to `main` without being asked**, and not before `npm test`,
+  `npx tsc --noEmit` and `npm run build` all pass. Pushing is the irreversible,
+  outward-facing step here; treat it the way you would treat a deploy command.
+- **`npx vercel --prod` is redundant** and usually wrong. The push has already
+  built the same commit, so running it just builds it a second time. Reach for
+  the CLI only to inspect (`npx vercel ls --prod`) or to ship a commit that is
+  deliberately not on `main`.
+
+Work on a branch when the change is not ready to be live.
