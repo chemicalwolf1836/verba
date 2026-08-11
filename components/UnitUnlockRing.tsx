@@ -4,9 +4,13 @@ import { lineColor } from '@/lib/lineColors'
 export function UnitUnlockRing({
   goal,
   unitLabel,
+  arriving = false,
 }: {
   goal: UnitGoal
   unitLabel: string
+  /** True briefly after a station opens. Draws the line into the new stop and
+   *  rings its roundel, so the unlock chime has something to land on. */
+  arriving?: boolean
 }) {
   // Counted against the unlock point, never the unit total. At 5 of 8 with a
   // threshold of 6 this reads "1 more", not "3 more" - otherwise the goal looks
@@ -20,7 +24,11 @@ export function UnitUnlockRing({
   const stations = Array.from({ length: goal.total }, (_, i) => i)
 
   return (
-    <div className="mb-4 overflow-hidden rounded-xl border border-[var(--color-line)] bg-[var(--color-card)]">
+    <div
+      className={`mb-4 overflow-hidden rounded-xl border border-[var(--color-line)] bg-[var(--color-card)] ${
+        arriving ? 'station-arrive' : ''
+      }`}
+    >
       <div className="board rounded-none">
         <span className="roundel on-board" style={{ ['--rd' as string]: color }}>
           {goal.unit.index}
@@ -32,7 +40,7 @@ export function UnitUnlockRing({
 
       {/* This unit is a short line; each card is a station. You have reached the
           amber marker; the flagged station is the unlock point for the next line. */}
-      <div className="flex items-center px-4 pt-4" aria-hidden>
+      <div className="station-line flex items-center px-4 pt-4" aria-hidden>
         {stations.map((i) => {
           const done = i < goal.learned
           const here = i === goal.learned - 1

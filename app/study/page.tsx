@@ -14,6 +14,7 @@ import { matchesAnswer } from '@/lib/answer'
 import { type Card } from '@/lib/courses'
 import { currentUnitGoal, drillPool, unitPool } from '@/lib/goals'
 import { nextCard, unlockedUnits, type ProgressMap } from '@/lib/leitner'
+import { CARD_LEAVE_MS, STATION_ARRIVE_MS, motionDuration } from '@/lib/motion'
 import { loadProgress } from '@/lib/progress'
 import { countNew, countReviews, sessionPool } from '@/lib/session'
 import { playSfx } from '@/lib/sfx'
@@ -202,9 +203,26 @@ function StudySession() {
     // what makes this correct under hydration too: the first client render may use
     // an empty progress snapshot, so the ref alone could capture a stale count and
     // misfire when the real count arrives.
-    if (state.tally.studied > 0 && unlockedCount > prevUnlocked.current) playSfx('unlock')
+    if (state.tally.studied > 0 && unlockedCount > prevUnlocked.current) {
+      playSfx('unlock')
+      // The chime had nothing to land on: the line now draws into the newly
+      // opened station and the roundel takes the amber ring.
+      setArriving(true)
+    }
     prevUnlocked.current = unlockedCount
   }, [unlockedCount, state.tally.studied])
+
+  const [arriving, setArriving] = useState(false)
+  useEffect(() => {
+    if (!arriving) return
+    const wait = motionDuration(STATION_ARRIVE_MS)
+    if (wait === 0) {
+      setArriving(false)
+      return
+    }
+    const t = setTimeout(() => setArriving(false), wait)
+    return () => clearTimeout(t)
+  }, [arriving])
 
   const card: Card | null = useMemo(
     () => nextCard(pool, progress, state.history),
@@ -215,14 +233,60 @@ function StudySession() {
   const phase: Phase = derivePhase(isNew, state)
   const sessionEnded = isSessionEnded(state, card !== null)
 
+  /**
+   * A graded card leaves before the next arrives, so the grade is committed on a
+   * delay. Two things that delay could break, and does not:
+   *
+   * - A second grade landing mid-flight (two fast taps, or a key during a swipe)
+   *   is refused while one is pending, so a card cannot be graded twice.
+   * - A grade is never lost to leaving the screen mid-animation: the cleanup
+   *   below writes any pending grade synchronously on unmount.
+   *
+   * Under prefers-reduced-motion the wait is zero and this collapses back to an
+   * immediate grade - a JS timer does not respect the media query the way the
+   * CSS does, and a delay with no animation would be the worst of both.
+   */
+  const [leaving, setLeaving] = useState<'l' | 'r' | null>(null)
+  const pendingGrade = useRef<{ cardId: string; correct: boolean } | null>(null)
+  const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const commitGrade = useCallback(() => {
+    const pending = pendingGrade.current
+    if (!pending) return
+    pendingGrade.current = null
+    gradeCard(pending.cardId, pending.correct)
+    dispatch({ type: 'graded', correct: pending.correct, cardId: pending.cardId })
+    setLeaving(null)
+  }, [gradeCard])
+
   const onGrade = useCallback(
     (correct: boolean) => {
-      if (!card) return
+      if (!card || pendingGrade.current) return
       playSfx(correct ? 'correct' : 'incorrect')
-      gradeCard(card.id, correct)
-      dispatch({ type: 'graded', correct, cardId: card.id })
+      pendingGrade.current = { cardId: card.id, correct }
+      const wait = motionDuration(CARD_LEAVE_MS)
+      if (wait === 0) {
+        commitGrade()
+        return
+      }
+      setLeaving(correct ? 'r' : 'l')
+      leaveTimer.current = setTimeout(commitGrade, wait)
     },
-    [card, gradeCard],
+    [card, commitGrade],
+  )
+
+  useEffect(
+    () => () => {
+      if (leaveTimer.current) clearTimeout(leaveTimer.current)
+      // Unmounting cannot dispatch, but it can still save the grade - which is
+      // the half that matters if the learner navigates away mid-animation.
+      const pending = pendingGrade.current
+      if (pending) {
+        pendingGrade.current = null
+        gradeCard(pending.cardId, pending.correct)
+      }
+    },
+    [gradeCard],
   )
 
   const onReveal = useCallback(() => {
@@ -336,7 +400,7 @@ function StudySession() {
 
       <VoiceWarning />
 
-      {goal && <UnitUnlockRing goal={goal} unitLabel={course.unitLabel} />}
+      {goal && <UnitUnlockRing goal={goal} unitLabel={course.unitLabel} arriving={arriving} />}
 
       <CardStage
         card={card}
@@ -345,6 +409,7 @@ function StudySession() {
         matched={matchesAnswer(state.typed, card)}
         answerMode={session.answerMode}
         box={progress[card.id]?.box ?? 1}
+        leaving={leaving}
         onType={(value) => dispatch({ type: 'type', value })}
         onReveal={onReveal}
         onContinue={() => dispatch({ type: 'continue', cardId: card.id })}

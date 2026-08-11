@@ -19,6 +19,10 @@ type Props = {
   answerMode: AnswerMode
   /** Leitner box the card sits in right now, shown as context on reveal. */
   box: number
+  /** Set while a graded card is on its way out - 'r' for knew it, 'l' for not
+   *  yet. The page owns this so the buttons, the keys and the swipe all animate
+   *  identically. */
+  leaving?: 'l' | 'r' | null
 }
 
 const NORMAL_RATE = 0.85
@@ -39,7 +43,7 @@ const wordSize = (jp: string) =>
   jp.length > 5 ? 'text-4xl' : jp.length > 3 ? 'text-5xl' : jp.length > 2 ? 'text-6xl' : 'text-7xl'
 
 export function CardStage({
-  card, phase, typed, onType, onReveal, onGrade, onContinue, matched, answerMode, box,
+  card, phase, typed, onType, onReveal, onGrade, onContinue, matched, answerMode, box, leaving,
 }: Props) {
   const [loop, setLoop] = useState(false)
   // Bumped on every play so the audio bar's CSS animation restarts from zero.
@@ -90,9 +94,11 @@ export function CardStage({
     return () => window.removeEventListener('keydown', onKey)
   }, [play])
 
+  const leaveClass = leaving === 'r' ? 'card-leave-r' : leaving === 'l' ? 'card-leave-l' : ''
+
   if (phase === 'introduce') {
     return (
-      <section className="flex flex-1 flex-col gap-5">
+      <section className={`flex flex-1 flex-col gap-5 ${leaveClass}`}>
         <p className="text-center text-sm text-[var(--color-muted)]">
           A new stop on the line. Listen, read it, then it joins the queue.
         </p>
@@ -113,7 +119,9 @@ export function CardStage({
 
   if (phase === 'revealed') {
     return (
-      <section className="flex flex-1 flex-col gap-4">
+      // reveal-stagger settles the answer in order - verdict, headword, rule,
+      // example, actions - rather than dropping it all in at once.
+      <section className={`reveal-stagger flex flex-1 flex-col gap-4 ${leaveClass}`}>
         {showTyping && typed.trim() !== '' && (
           <p
             className={`text-center text-sm font-extrabold ${
@@ -153,7 +161,7 @@ export function CardStage({
   }
 
   return (
-    <section className="flex flex-1 flex-col gap-5">
+    <section className={`flex flex-1 flex-col gap-5 ${leaveClass}`}>
       <div className="flex flex-col items-center gap-5 pt-5">
         <p className="text-[var(--color-muted)]">Listen, then say the reading out loud.</p>
 

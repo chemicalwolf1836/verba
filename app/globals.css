@@ -133,6 +133,42 @@ body {
 @keyframes gap-drain { from { width: 100% } to { width: 0 } }
 .gap-drain { animation: gap-drain linear forwards; }
 
+/* ---- motion ----
+   One easing curve for everything, so the app moves in a single manner: a quick
+   start that settles rather than bounces. Mechanical, in keeping with the name. */
+@theme { --ease-quiet: cubic-bezier(.2, .7, .3, 1); }
+
+/* A graded card leaves in the direction of the verdict. Swipe-to-grade already
+   exists and is invisible; this is what teaches the gesture to anyone using the
+   buttons. lib/motion.ts holds the matching JS duration. */
+@keyframes card-leave-right { to { transform: translateX(150px) rotate(4deg); opacity: 0 } }
+@keyframes card-leave-left  { to { transform: translateX(-150px) rotate(-4deg); opacity: 0 } }
+@keyframes card-enter       { from { transform: translateY(10px) scale(.97); opacity: 0 } }
+.card-leave-r { animation: card-leave-right .26s var(--ease-quiet) forwards; }
+.card-leave-l { animation: card-leave-left .26s var(--ease-quiet) forwards; }
+.card-enter   { animation: card-enter .26s var(--ease-quiet) both; }
+
+/* The answer settles in order rather than arriving all at once. The moment of
+   recall is the point of the app, and a jump-cut wastes it. */
+@keyframes rise { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }
+.reveal-stagger > * { animation: rise .34s var(--ease-quiet) both; }
+.reveal-stagger > *:nth-child(1) { animation-delay: 0ms }
+.reveal-stagger > *:nth-child(2) { animation-delay: 60ms }
+.reveal-stagger > *:nth-child(3) { animation-delay: 120ms }
+.reveal-stagger > *:nth-child(4) { animation-delay: 180ms }
+.reveal-stagger > *:nth-child(5) { animation-delay: 240ms }
+
+/* Arriving at a newly opened station: the line draws in, then the roundel takes
+   the amber you-are-here ring. Gives the unlock chime something to land on. */
+@keyframes station-draw { from { clip-path: inset(0 100% 0 0) } to { clip-path: inset(0 0 0 0) } }
+@keyframes station-ring {
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-here) 55%, transparent) }
+  60%  { box-shadow: 0 0 0 7px color-mix(in srgb, var(--color-here) 0%, transparent) }
+  100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-here) 0%, transparent) }
+}
+.station-arrive .station-line { animation: station-draw .42s var(--ease-quiet) both; }
+.station-arrive .roundel { animation: station-ring .6s var(--ease-quiet) .3s both; }
+
 /* Focus visibility (quality floor) */
 a:focus-visible, button:focus-visible, input:focus-visible {
   outline: 2px solid var(--color-accent);
