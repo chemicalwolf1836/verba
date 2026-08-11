@@ -378,7 +378,12 @@ function StudySession() {
     <main
       onPointerDown={onPointerDown}
       onPointerUp={onPointerUp}
-      className="mx-auto flex min-h-[38rem] w-full max-w-xl flex-col gap-4 px-4 py-5 [touch-action:pan-y]"
+      // overflow-x-clip contains the departing card. It translates 150px, which
+      // on a 375px phone pushed the document to 523px wide for the ~240ms of the
+      // animation - enough for a horizontal scrollbar, and on iOS enough to drag
+      // the page sideways mid-flight. `clip` rather than `hidden`: hidden would
+      // make this a scroll container and turn the y-axis into `auto` with it.
+      className="mx-auto flex min-h-[38rem] w-full max-w-xl flex-col gap-4 overflow-x-clip px-4 py-5 [touch-action:pan-y]"
     >
       <StudyProgress
         position={Math.min(state.tally.studied + 1, pool.length)}
