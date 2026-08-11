@@ -152,19 +152,24 @@ npm test        # vitest
 
 ## Deploying
 
-**The Vercel project is connected to GitHub, so pushing to `main` deploys to
-production.** `git push` is the deploy. There is no separate staging step and no
-manual promotion - the live site at https://verbaapp.vercel.app follows `main`
-within about a minute.
+**Pushing does not deploy.** The Vercel project has no linked Git repository -
+`vercel project inspect verbaapp` reports no repo, and a push to `main` leaves
+the newest deployment untouched. Production only moves when someone runs:
 
-This has two consequences worth stating plainly:
+```
+npx vercel --prod
+```
 
-- **Do not push to `main` without being asked**, and not before `npm test`,
-  `npx tsc --noEmit` and `npm run build` all pass. Pushing is the irreversible,
-  outward-facing step here; treat it the way you would treat a deploy command.
-- **`npx vercel --prod` is redundant** and usually wrong. The push has already
-  built the same commit, so running it just builds it a second time. Reach for
-  the CLI only to inspect (`npx vercel ls --prod`) or to ship a commit that is
-  deliberately not on `main`.
+This was recorded the other way round for a while, on the strength of a
+deployment that happened to appear near a push. Do not restate it without
+checking: push, then run `npx vercel ls` and confirm a new deployment actually
+appeared. Timestamps near a push are not evidence - a manual deploy moments
+earlier looks identical.
 
-Work on a branch when the change is not ready to be live.
+So the two steps are separate, and each needs asking for:
+
+- `git push` publishes the code and changes nothing a user sees.
+- `npx vercel --prod` is the deploy. Never run it unasked, and never before
+  `npm test`, `npx tsc --noEmit` and `npm run build` all pass.
+
+Work on a branch when the change is not ready to be shared.
