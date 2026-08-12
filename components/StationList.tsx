@@ -92,7 +92,9 @@ export function StationList({ onSelect, selectedId, course: courseProp }: Props 
             )}
 
             <span
-              className={`roundel ${s.mastered ? 'text-white' : ''}`}
+              className={`roundel ${s.mastered ? 'text-white' : ''} ${
+                s.unit.id === selectedId ? 'vt-station' : ''
+              }`}
               style={{
                 ['--rd' as string]: s.here ? 'var(--color-here)' : 'var(--color-accent)',
                 background: s.mastered

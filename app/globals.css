@@ -158,6 +158,20 @@ body {
 .reveal-stagger > *:nth-child(4) { animation-delay: 180ms }
 .reveal-stagger > *:nth-child(5) { animation-delay: 240ms }
 
+/* Route change. Reuses `rise` above rather than inventing a second idea: a screen
+   arrives the way a revealed answer does. The wrapper has to be a real box - an
+   element with `display: contents` generates none, and so cannot be animated. */
+.route-enter { animation: rise .22s var(--ease-quiet) both; }
+
+/* Shared-element hand-off between the station rail and the unit detail.
+   Only below lg: above it both panes are on screen at once, and two elements
+   cannot hold the same view-transition-name without the transition erroring. */
+@media (max-width: 1023px) {
+  .vt-station { view-transition-name: station; }
+}
+::view-transition-old(station),
+::view-transition-new(station) { animation-duration: .26s; }
+
 /* Arriving at a newly opened station: the line draws in, then the roundel takes
    the amber you-are-here ring. Gives the unlock chime something to land on. */
 @keyframes station-draw { from { clip-path: inset(0 100% 0 0) } to { clip-path: inset(0 0 0 0) } }

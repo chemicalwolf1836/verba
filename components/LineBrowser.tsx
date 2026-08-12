@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { flushSync } from 'react-dom'
 import Link from 'next/link'
 import { StationList } from '@/components/StationList'
 import { BoxBars } from '@/components/WeakWords'
@@ -28,6 +29,26 @@ export function LineBrowser({ initialUnitId }: Props) {
   const { course: activeCourse } = useActiveCourse()
   const { progress } = useProgress()
   const [selected, setSelected] = useState<string | null>(initialUnitId ?? null)
+
+  /**
+   * Selecting a station is a state change, not a navigation, so the View
+   * Transition is driven straight from here.
+   *
+   * flushSync is required: startViewTransition snapshots the DOM, runs the
+   * callback, then snapshots again. React would batch a plain setState until
+   * after the callback returned, so the second snapshot would be identical to
+   * the first and nothing would animate.
+   *
+   * Where the API is missing this is an ordinary setState - the pane simply
+   * changes, which is what happens today.
+   */
+  const go = (next: string | null) => {
+    if (typeof document === 'undefined' || !document.startViewTransition) {
+      setSelected(next)
+      return
+    }
+    document.startViewTransition(() => flushSync(() => setSelected(next)))
+  }
 
   // An id generateStaticParams never produced: render nothing rather than throw.
   if (initialUnitId && !found) return null
@@ -69,7 +90,7 @@ export function LineBrowser({ initialUnitId }: Props) {
           <StationList
             course={course}
             selectedId={detailId}
-            onSelect={(id) => setSelected(id)}
+            onSelect={go}
           />
         </div>
 
@@ -83,7 +104,7 @@ export function LineBrowser({ initialUnitId }: Props) {
             <UnitDetail
               course={course}
               unit={detail}
-              onBack={() => setSelected(null)}
+              onBack={() => go(null)}
             />
           )}
         </div>
@@ -110,6 +131,12 @@ function UnitDetail({
       </button>
 
       <div className="flex items-end gap-3.5">
+        {/* The other half of the shared element. Below lg the rail is hidden
+            while this is on screen, so exactly one element ever carries the
+            name - two would make the transition throw. */}
+        <span className="roundel vt-station shrink-0" aria-hidden>
+          {unit.index}
+        </span>
         <div className="min-w-0 space-y-1">
           <p className="sig-label text-[11px] text-[var(--color-muted)]">
             {course.unitLabel} {unit.index}
