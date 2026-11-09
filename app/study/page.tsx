@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { CardStage } from '@/components/CardStage'
 import { SessionSetup } from '@/components/SessionSetup'
 import { SessionSummary } from '@/components/SessionSummary'
@@ -139,6 +139,18 @@ export function isSessionEnded(state: State, hasCard: boolean): boolean {
   return state.tally.studied > 0 && (state.finished || !hasCard)
 }
 
+/**
+ * What tapping End should do. With something graded - or a grade still in flight
+ * from the card that is animating away - there is a sitting to summarise. With
+ * nothing graded there is not, and `isSessionEnded` rightly refuses to fake one,
+ * so End leaves the study screen instead. Without this branch End did nothing at
+ * all until the first grade: 'finish' was set, but no screen read it. New cards
+ * make that common, because introducing a card is not grading it.
+ */
+export function endOutcome(state: State, gradePending: boolean): 'summary' | 'leave' {
+  return state.tally.studied > 0 || gradePending ? 'summary' : 'leave'
+}
+
 /** Resolve frozen session ids back to cards, dropping any that no longer exist. */
 export function resolveCards(ids: string[], all: Card[]): Card[] {
   const byId = new Map(all.map((c) => [c.id, c]))
@@ -151,6 +163,7 @@ function StudySession() {
   const { session, setSession } = useSession()
   const [state, dispatch] = useReducer(reducer, initial)
 
+  const router = useRouter()
   const params = useSearchParams()
   const mode = params.get('mode')
   const unitId = params.get('unit')
@@ -294,6 +307,22 @@ function StudySession() {
     dispatch({ type: 'reveal', isNew })
   }, [isNew])
 
+  const onEnd = useCallback(() => {
+    cancel()
+    const gradePending = pendingGrade.current !== null
+    if (endOutcome(state, gradePending) === 'leave') {
+      router.push('/')
+      return
+    }
+    // Land the in-flight grade now rather than after the summary is up, so the
+    // card that was leaving is counted in it.
+    if (gradePending) {
+      if (leaveTimer.current) clearTimeout(leaveTimer.current)
+      commitGrade()
+    }
+    dispatch({ type: 'finish' })
+  }, [state, router, commitGrade])
+
   // Keyboard shortcuts. Every one bails while an input has focus - the answer box
   // takes romaji, so 'r', '1' and space are all legitimate keystrokes there.
   const active = sessionIds !== null && !sessionEnded && card !== null
@@ -390,10 +419,7 @@ function StudySession() {
         total={pool.length}
         got={state.tally.got}
         missed={state.tally.missed}
-        onEnd={() => {
-          cancel()
-          dispatch({ type: 'finish' })
-        }}
+        onEnd={onEnd}
         // Below lg it rides in this row, next to End. At lg the platform header
         // carries it instead - see AppNav - so only one is ever on screen.
         trailing={
