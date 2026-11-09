@@ -16,8 +16,20 @@ beforeEach(() => {
   vi.resetModules()
 })
 
+/** One week-1 card, studied once and missed - the minimum for something to slip. */
+function seedMissed() {
+  const course = getCourse(DEFAULT_COURSE_ID)!
+  const first = course.cards.find((c) => c.unitId === 'bjt-w01')!
+  localStorage.setItem(
+    'trainer.progress.v1',
+    JSON.stringify({ [first.id]: { box: 1, seen: 1, correct: 0, lastSeen: 1 } }),
+  )
+  return first
+}
+
 describe('WeakWords', () => {
   it('links its drill button to the weak study mode', async () => {
+    seedMissed()
     const { WeakWords } = await import('./WeakWords')
     const { container, unmount } = render(<WeakWords />)
     await act(async () => {})
@@ -27,14 +39,22 @@ describe('WeakWords', () => {
   })
 
   it('lists weak cards from the active course (week 1 is always unlocked)', async () => {
-    const course = getCourse(DEFAULT_COURSE_ID)!
-    const first = course.cards.find((c) => c.unitId === 'bjt-w01')!
+    const first = seedMissed()
     const { WeakWords } = await import('./WeakWords')
     const { container, unmount } = render(<WeakWords />)
     await act(async () => {})
     expect(container.textContent).toContain(first.jp)
     unmount()
   })
+})
+
+it('shows nothing slipping on a fresh profile, with no drill link', async () => {
+  const { WeakWords } = await import('./WeakWords')
+  const { container, unmount } = render(<WeakWords />)
+  await act(async () => {})
+  expect(container.querySelector('a[href="/study?mode=weak"]')).toBeNull()
+  expect(container.textContent).toContain('Nothing slipping')
+  unmount()
 })
 
 describe('BoxBars', () => {

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
+  newSourceLabel,
   reducer,
   initial,
   isNewCard,
@@ -267,5 +268,13 @@ describe('endOutcome', () => {
 
   it('shows the summary when the first grade is still animating away', () => {
     expect(endOutcome(initial, true)).toBe('summary')
+  })
+})
+
+describe('newSourceLabel', () => {
+  it('names the phrases alongside the unit, so the count adds up', () => {
+    expect(newSourceLabel('Week 1 - Particles', 15)).toBe('Week 1 - Particles + 15 phrases')
+    expect(newSourceLabel('Week 1 - Particles', 1)).toBe('Week 1 - Particles + 1 phrase')
+    expect(newSourceLabel('Week 1 - Particles', 0)).toBe('Week 1 - Particles')
   })
 })

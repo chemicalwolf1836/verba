@@ -16,7 +16,7 @@ import { currentUnitGoal, drillPool, unitPool } from '@/lib/goals'
 import { nextCard, unlockedUnits, type ProgressMap } from '@/lib/leitner'
 import { CARD_LEAVE_MS, STATION_ARRIVE_MS, motionDuration } from '@/lib/motion'
 import { loadProgress } from '@/lib/progress'
-import { countNew, countReviews, sessionPool } from '@/lib/session'
+import { countNew, countReviews, isNewToSession, sessionPool } from '@/lib/session'
 import { playSfx } from '@/lib/sfx'
 import { cancel } from '@/lib/speech'
 import { useActiveCourse, useProgress, useSession } from '@/lib/useProgress'
@@ -149,6 +149,16 @@ export function isSessionEnded(state: State, hasCard: boolean): boolean {
  */
 export function endOutcome(state: State, gradePending: boolean): 'summary' | 'leave' {
   return state.tally.studied > 0 || gradePending ? 'summary' : 'leave'
+}
+
+/**
+ * Where the setup's "New words" come from. Phrases belong to no unit and are
+ * always in the pool, so naming only the unit made "23 new words - Week 1" look
+ * like a miscount for an 8-word week.
+ */
+export function newSourceLabel(unitTitle: string, newPhrases: number): string {
+  if (newPhrases === 0) return unitTitle
+  return `${unitTitle} + ${newPhrases} ${newPhrases === 1 ? 'phrase' : 'phrases'}`
 }
 
 /** Resolve frozen session ids back to cards, dropping any that no longer exist. */
@@ -368,7 +378,10 @@ function StudySession() {
         onStart={start}
         newCount={countNew(setupPool, progress)}
         reviewCount={countReviews(setupPool, progress)}
-        unitTitle={goal ? `${course.unitLabel} ${goal.unit.index} - ${goal.unit.theme}` : course.name}
+        unitTitle={newSourceLabel(
+          goal ? `${course.unitLabel} ${goal.unit.index} - ${goal.unit.theme}` : course.name,
+          setupPool.filter((c) => c.unitId === '' && isNewToSession(c, progress)).length,
+        )}
       />
     )
   }
