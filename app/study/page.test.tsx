@@ -5,6 +5,7 @@ import {
   isNewCard,
   derivePhase,
   isSessionEnded,
+  endOutcome,
   resolveCards,
   type State,
 } from './page'
@@ -248,5 +249,23 @@ describe('resolveCards', () => {
 
   it('returns nothing for an empty id list', () => {
     expect(resolveCards([], all)).toEqual([])
+  })
+})
+
+describe('endOutcome', () => {
+  it('leaves the study screen when End is tapped before anything was graded', () => {
+    // Introducing a card is not grading it, so a learner can be several cards in
+    // with studied still 0. End used to do nothing here.
+    const introducedOnly = reducer(initial, { type: 'continue', cardId: 'card-1' })
+    expect(endOutcome(introducedOnly, false)).toBe('leave')
+  })
+
+  it('shows the summary once at least one card was graded', () => {
+    const midSession = reducer(initial, { type: 'graded', correct: true, cardId: 'card-1' })
+    expect(endOutcome(midSession, false)).toBe('summary')
+  })
+
+  it('shows the summary when the first grade is still animating away', () => {
+    expect(endOutcome(initial, true)).toBe('summary')
   })
 })
