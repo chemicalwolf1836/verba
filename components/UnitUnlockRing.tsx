@@ -25,22 +25,35 @@ export function UnitUnlockRing({
 
   return (
     <div
-      className={`mb-4 overflow-hidden rounded-xl border border-[var(--color-line)] bg-[var(--color-card)] ${
+      className={`overflow-hidden rounded-xl border border-[var(--color-line)] bg-[var(--color-card)] ${
         arriving ? 'station-arrive' : ''
       }`}
     >
-      <div className="board rounded-none">
-        <span className="roundel on-board" style={{ ['--rd' as string]: color }}>
-          {goal.unit.index}
-        </span>
-        <span className="lab truncate">
-          {unitLabel} {goal.unit.index} - {goal.unit.theme}
-        </span>
+      {/* The full signage board from sm up. On a phone it cost ~60px of a
+          screen that could not spare it - the answer buttons were below the
+          fold - so there the unit name rides as a small label instead. The
+          wrapper does the hiding because .board sets its own display. */}
+      <div className="hidden sm:block">
+        <div className="board rounded-none">
+          <span className="roundel on-board" style={{ ['--rd' as string]: color }}>
+            {goal.unit.index}
+          </span>
+          <span className="lab truncate">
+            {unitLabel} {goal.unit.index} - {goal.unit.theme}
+          </span>
+        </div>
       </div>
+      <p aria-hidden className="sig-label truncate px-3.5 pt-3 text-[11px] sm:hidden">
+        <span
+          className="mr-2 inline-block h-2 w-2 rounded-full align-middle"
+          style={{ background: color }}
+        />
+        {unitLabel} {goal.unit.index} - {goal.unit.theme}
+      </p>
 
       {/* This unit is a short line; each card is a station. You have reached the
           amber marker; the flagged station is the unlock point for the next line. */}
-      <div className="station-line flex items-center px-4 pt-4" aria-hidden>
+      <div className="station-line flex items-center px-3.5 pt-4 sm:px-4" aria-hidden>
         {stations.map((i) => {
           const done = i < goal.learned
           const here = i === goal.learned - 1
@@ -74,7 +87,7 @@ export function UnitUnlockRing({
         })}
       </div>
 
-      <p className="px-4 pb-4 pt-3 text-xs text-[var(--color-muted)]">
+      <p className="px-3.5 pb-3 pt-2.5 text-xs text-[var(--color-muted)] sm:px-4 sm:pb-4 sm:pt-3">
         {goal.learned} of {goal.total} learned · {caption}
       </p>
     </div>

@@ -100,9 +100,10 @@ a box comparison in a component - use the exported predicates.
 - **learned** = `box >= 2`, answered correctly at least once. Drives unit
   unlocking and pace projection.
 - **mastered** = `box === 5`. Drives the course mastery bar headline only.
-- **weak** = `box < 4` (`isWeak` in `lib/goals.ts`). Drives the Slipping list and
-  the weak drill. A third threshold on purpose - "words to shore up" must mean
-  cards that still need work, not just the bottom of the pile.
+- **weak** = studied at least once (`seen > 0`) and `box < 4` (`isWeak` in
+  `lib/goals.ts`). Drives the Slipping list and the weak drill. A third threshold
+  on purpose - "words to shore up" must mean cards that still need work, not just
+  the bottom of the pile. A never-studied card is *new*, not weak.
 
 ## Storage
 

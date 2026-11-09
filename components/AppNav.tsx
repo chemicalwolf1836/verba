@@ -5,16 +5,21 @@ import { usePathname } from 'next/navigation'
 import { SoundToggle } from '@/components/SoundToggle'
 import { useActiveCourse } from '@/lib/useProgress'
 
-const LINKS = [
+/** The app's three destinations - shared with the phone tab bar. */
+export const NAV_LINKS = [
   { href: '/', label: 'Today' },
   { href: '/units', label: 'The line' },
   { href: '/shadow', label: 'Shadow' },
 ] as const
 
+/** '/' would prefix-match everything, so it is compared exactly. */
+export const isActive = (href: string, pathname: string): boolean =>
+  href === '/' ? pathname === '/' : pathname.startsWith(href)
+
 /**
- * Desktop-only platform header. Below lg the screens carry their own back links
- * and the home page shows the wordmark inline, so a persistent bar would only
- * eat vertical space on the phone this is mostly used on.
+ * Desktop-only platform header. Below lg the same destinations live in the
+ * bottom TabBar, and the home page shows the wordmark inline, so a top bar
+ * would only eat vertical space on the phone this is mostly used on.
  */
 export function AppNav() {
   const pathname = usePathname()
@@ -38,9 +43,8 @@ export function AppNav() {
         </span>
 
         <nav className="ml-auto flex gap-5 text-sm font-bold">
-          {LINKS.map(({ href, label }) => {
-            // '/' would prefix-match everything, so it is compared exactly.
-            const active = href === '/' ? pathname === '/' : pathname.startsWith(href)
+          {NAV_LINKS.map(({ href, label }) => {
+            const active = isActive(href, pathname)
             return (
               <Link
                 key={href}

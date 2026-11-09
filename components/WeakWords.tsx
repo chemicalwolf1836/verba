@@ -61,7 +61,7 @@ export function WeakWords() {
 
       {empty ? (
         <p className="text-sm text-[var(--color-muted)]">
-          Nothing is slipping right now - keep studying.
+          Nothing slipping. Words you miss will show up here.
         </p>
       ) : (
         // A shared grid rather than a flex row per line, so the hairline rules land

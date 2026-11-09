@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import { END_BUTTON } from '@/components/StudyProgress'
 import { VoiceWarning } from '@/components/VoiceWarning'
 import { SHADOW_LINES } from '@/lib/courses/shadow'
 import { estimateDuration, SPEAK_MULTIPLIER } from '@/lib/shadow'
@@ -73,7 +74,7 @@ export default function ShadowPage() {
   return (
     <main className="mx-auto flex min-h-[34rem] w-full max-w-xl flex-col gap-5 px-4 py-5">
       <div className="space-y-2.5">
-        <div className="flex items-baseline">
+        <div className="flex items-center">
           <span className="text-sm font-extrabold tabular-nums">
             {index + 1}{' '}
             <span className="font-semibold text-[var(--color-muted)]">
@@ -83,9 +84,9 @@ export default function ShadowPage() {
           <Link
             href="/"
             onClick={() => cancel()}
-            className="ml-auto text-sm font-bold text-[var(--color-muted)]"
+            className={`ml-auto ${END_BUTTON}`}
           >
-            Done
+            End
           </Link>
         </div>
         <div className="h-[5px] overflow-hidden rounded-sm bg-[var(--color-line)]">

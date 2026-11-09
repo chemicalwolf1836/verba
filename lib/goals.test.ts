@@ -139,13 +139,11 @@ describe('weakestCards', () => {
     expect(out).toEqual(['c-box1-stale-early', 'b-box1-stale-late', 'a-box2-fresh'])
   })
 
-  it('treats an unseen card as box 1, ranking it above a stronger card, and takes at most n', () => {
-    const cards = [{ id: 'strong' } as never, { id: 'unseen' } as never, { id: 'also-unseen' } as never]
-    const progress: ProgressMap = { strong: boxWithLastSeen(4, 0) }
-    // 'unseen' and 'also-unseen' have no progress -> box 1 -> weaker than 'strong' (box 4).
+  it('never lists an unseen card - a word not yet met is new, not slipping', () => {
+    const cards = [{ id: 'unseen' } as never, { id: 'w1' } as never, { id: 'w2' } as never]
+    const progress: ProgressMap = { w1: boxWithLastSeen(1, 5), w2: boxWithLastSeen(2, 1) }
     const out = weakestCards(cards, progress, 2).map((c) => c.id)
-    expect(out).toHaveLength(2)
-    expect(out).not.toContain('strong')
+    expect(out).toEqual(['w1', 'w2'])
   })
 
   it('excludes solid cards (box 4 and 5) even when fewer than n weak cards remain', () => {
@@ -173,8 +171,9 @@ describe('weakestCards', () => {
 })
 
 describe('isWeak', () => {
-  it('counts boxes 1 to 3 as weak and 4 to 5 as solid', () => {
-    expect(isWeak(undefined)).toBe(true)
+  it('counts studied cards in boxes 1 to 3 as weak, 4 to 5 as solid, and unseen as neither', () => {
+    expect(isWeak(undefined)).toBe(false)
+    expect(isWeak({ box: 1, seen: 0, correct: 0, lastSeen: 0 })).toBe(false)
     expect(isWeak(boxWithLastSeen(1))).toBe(true)
     expect(isWeak(boxWithLastSeen(3))).toBe(true)
     expect(isWeak(boxWithLastSeen(4))).toBe(false)
@@ -190,7 +189,15 @@ describe('drillPool', () => {
 
   it('returns at most WEAK_COUNT weakest cards when mode is "weak"', () => {
     const course = getCourse(DEFAULT_COURSE_ID)!
-    expect(drillPool(course, {}, 'weak')).toHaveLength(WEAK_COUNT)
+    const missed = Object.fromEntries(
+      course.cards.slice(0, 20).map((c) => [c.id, boxWithLastSeen(1, 1)]),
+    )
+    expect(drillPool(course, missed, 'weak')).toHaveLength(WEAK_COUNT)
+  })
+
+  it('is empty on a fresh profile - nothing studied, nothing weak', () => {
+    const course = getCourse(DEFAULT_COURSE_ID)!
+    expect(drillPool(course, {}, 'weak')).toEqual([])
   })
 })
 

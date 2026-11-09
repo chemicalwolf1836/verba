@@ -13,7 +13,7 @@ import { boardName } from '@/lib/courses'
 import { SHADOW_LINES } from '@/lib/courses/shadow'
 import { currentUnitGoal, isWeak } from '@/lib/goals'
 import { unlockedCards, unlockedUnits } from '@/lib/leitner'
-import { cardsFor, minutesFor } from '@/lib/session'
+import { cardsFor, countReviews, minutesFor } from '@/lib/session'
 import { useActiveCourse, useProgress, useSession } from '@/lib/useProgress'
 
 const Rule = () => <div aria-hidden className="h-px bg-[var(--color-line)]" />
@@ -59,7 +59,11 @@ export default function Home() {
   const weakCount = pool.filter((c) => isWeak(progress[c.id])).length
   const openCount = unlockedUnits(course, progress).length
   const goal = currentUnitGoal(course, progress)
-  const due = cardsFor(session.length)
+  // The session size is a choice, not a measure of what is owed - so it labels
+  // the Start button, and the headline counts what the learner actually has
+  // in hand to review.
+  const sessionSize = cardsFor(session.length)
+  const reviewCount = countReviews(pool, progress)
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-8 lg:max-w-6xl lg:px-6">
@@ -105,10 +109,16 @@ export default function Home() {
             <h2 className="text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
               {today?.greeting ?? 'Welcome back.'}
               <br />
-              {due} {due === 1 ? 'word is' : 'words are'} due.
+              {reviewCount > 0
+                ? `${reviewCount} ${reviewCount === 1 ? 'word' : 'words'} to review.`
+                : 'Ready for new words.'}
             </h2>
             <p className="text-[var(--color-muted)]">
-              Weakest first, then whatever has gone quiet.
+              {reviewCount > 0
+                ? 'Weakest first, then whatever has gone quiet.'
+                : `Next stop: ${course.unitLabel} ${goal?.unit.index ?? 1}${
+                    goal ? ` - ${goal.unit.theme}` : ''
+                  }.`}
             </p>
           </div>
 
@@ -120,7 +130,7 @@ export default function Home() {
               >
                 Start
                 <span className="ml-auto text-sm font-bold text-white/80">
-                  {due} words · {minutesFor(session.length)} min
+                  {sessionSize} words · {minutesFor(session.length)} min
                 </span>
               </Link>
               <span className="hidden whitespace-nowrap text-sm text-[var(--color-muted)] lg:inline">
@@ -129,7 +139,11 @@ export default function Home() {
             </div>
 
             <div className="flex flex-col rounded-2xl border border-[var(--color-line)] bg-[var(--color-card)]">
-              <QuickLink href="/study?mode=weak" label="Drill weak words" meta={weakCount} divider />
+              {/* Only once something has been missed - before that the drill has
+                  nothing to draw from and would open on an empty screen. */}
+              {weakCount > 0 && (
+                <QuickLink href="/study?mode=weak" label="Drill weak words" meta={weakCount} divider />
+              )}
               <QuickLink href="/shadow" label="Shadow phrases" meta={SHADOW_LINES.length} divider />
               <QuickLink
                 href="/units"

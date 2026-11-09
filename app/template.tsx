@@ -19,7 +19,9 @@ import { usePathname } from 'next/navigation'
 export default function Template({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   return (
-    <div key={pathname} className="route-enter">
+    // A flex column that grows, so a screen can fill the viewport with flex-1 -
+    // the study screen docks its action row to the bottom that way.
+    <div key={pathname} className="route-enter flex flex-1 flex-col">
       {children}
     </div>
   )

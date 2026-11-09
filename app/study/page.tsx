@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { CardStage } from '@/components/CardStage'
+import { CardStage, SWIPE_GRADE_PX } from '@/components/CardStage'
 import { SessionSetup } from '@/components/SessionSetup'
 import { SessionSummary } from '@/components/SessionSummary'
 import { SoundToggle } from '@/components/SoundToggle'
@@ -16,7 +16,7 @@ import { currentUnitGoal, drillPool, unitPool } from '@/lib/goals'
 import { nextCard, unlockedUnits, type ProgressMap } from '@/lib/leitner'
 import { CARD_LEAVE_MS, STATION_ARRIVE_MS, motionDuration } from '@/lib/motion'
 import { loadProgress } from '@/lib/progress'
-import { countNew, countReviews, sessionPool } from '@/lib/session'
+import { countNew, countReviews, isNewToSession, sessionPool } from '@/lib/session'
 import { playSfx } from '@/lib/sfx'
 import { cancel } from '@/lib/speech'
 import { useActiveCourse, useProgress, useSession } from '@/lib/useProgress'
@@ -151,6 +151,16 @@ export function endOutcome(state: State, gradePending: boolean): 'summary' | 'le
   return state.tally.studied > 0 || gradePending ? 'summary' : 'leave'
 }
 
+/**
+ * Where the setup's "New words" come from. Phrases belong to no unit and are
+ * always in the pool, so naming only the unit made "23 new words - Week 1" look
+ * like a miscount for an 8-word week.
+ */
+export function newSourceLabel(unitTitle: string, newPhrases: number): string {
+  if (newPhrases === 0) return unitTitle
+  return `${unitTitle} + ${newPhrases} ${newPhrases === 1 ? 'phrase' : 'phrases'}`
+}
+
 /** Resolve frozen session ids back to cards, dropping any that no longer exist. */
 export function resolveCards(ids: string[], all: Card[]): Card[] {
   const byId = new Map(all.map((c) => [c.id, c]))
@@ -260,6 +270,10 @@ function StudySession() {
    * CSS does, and a delay with no animation would be the worst of both.
    */
   const [leaving, setLeaving] = useState<'l' | 'r' | null>(null)
+  // How far a revealed card has been dragged. It is not reset on a grading
+  // release, so the leave animation starts from where the finger let go.
+  const [drag, setDrag] = useState(0)
+  const [dragging, setDragging] = useState(false)
   const pendingGrade = useRef<{ cardId: string; correct: boolean } | null>(null)
   const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -270,6 +284,7 @@ function StudySession() {
     gradeCard(pending.cardId, pending.correct)
     dispatch({ type: 'graded', correct: pending.correct, cardId: pending.cardId })
     setLeaving(null)
+    setDrag(0)
   }, [gradeCard])
 
   const onGrade = useCallback(
@@ -344,17 +359,32 @@ function StudySession() {
     return () => window.removeEventListener('keydown', onKey)
   }, [active, phase, onReveal, onGrade])
 
-  // Swipe to grade, revealed only: right = knew it, left = not yet.
+  // Swipe to grade, revealed only: right = knew it, left = not yet. The card
+  // follows the finger and shows the verdict it is heading for; a short swipe
+  // springs back rather than grading.
   const swipeFrom = useRef<number | null>(null)
   const onPointerDown = (e: React.PointerEvent) => {
     swipeFrom.current = e.clientX
   }
+  const onPointerMove = (e: React.PointerEvent) => {
+    const from = swipeFrom.current
+    if (from === null || phase !== 'revealed' || pendingGrade.current) return
+    setDragging(true)
+    setDrag(e.clientX - from)
+  }
   const onPointerUp = (e: React.PointerEvent) => {
     const from = swipeFrom.current
     swipeFrom.current = null
-    if (from === null || phase !== 'revealed') return
+    setDragging(false)
+    if (from === null || phase !== 'revealed' || pendingGrade.current) return
     const dx = e.clientX - from
-    if (Math.abs(dx) > 70) onGrade(dx > 0)
+    if (Math.abs(dx) > SWIPE_GRADE_PX) onGrade(dx > 0)
+    else setDrag(0)
+  }
+  const onPointerCancel = () => {
+    swipeFrom.current = null
+    setDragging(false)
+    if (!pendingGrade.current) setDrag(0)
   }
 
   if (sessionIds === null) {
@@ -368,7 +398,10 @@ function StudySession() {
         onStart={start}
         newCount={countNew(setupPool, progress)}
         reviewCount={countReviews(setupPool, progress)}
-        unitTitle={goal ? `${course.unitLabel} ${goal.unit.index} - ${goal.unit.theme}` : course.name}
+        unitTitle={newSourceLabel(
+          goal ? `${course.unitLabel} ${goal.unit.index} - ${goal.unit.theme}` : course.name,
+          setupPool.filter((c) => c.unitId === '' && isNewToSession(c, progress)).length,
+        )}
       />
     )
   }
@@ -406,13 +439,18 @@ function StudySession() {
   return (
     <main
       onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
+      onPointerCancel={onPointerCancel}
       // overflow-x-clip contains the departing card. It translates 150px, which
       // on a 375px phone pushed the document to 523px wide for the ~240ms of the
       // animation - enough for a horizontal scrollbar, and on iOS enough to drag
       // the page sideways mid-flight. `clip` rather than `hidden`: hidden would
       // make this a scroll container and turn the y-axis into `auto` with it.
-      className="mx-auto flex min-h-[38rem] w-full max-w-xl flex-col gap-4 overflow-x-clip px-4 py-5 [touch-action:pan-y]"
+      // flex-1 fills the screen under the header, so the docked action row sits
+      // at the bottom of the viewport even when the card is short. No bottom
+      // padding: the dock carries its own, including the home-indicator inset.
+      className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-4 overflow-x-clip px-4 pt-4 [touch-action:pan-y] sm:pt-5"
     >
       <StudyProgress
         position={Math.min(state.tally.studied + 1, pool.length)}
@@ -441,6 +479,8 @@ function StudySession() {
         answerMode={session.answerMode}
         box={progress[card.id]?.box ?? 1}
         leaving={leaving}
+        drag={drag}
+        dragging={dragging}
         onType={(value) => dispatch({ type: 'type', value })}
         onReveal={onReveal}
         onContinue={() => dispatch({ type: 'continue', cardId: card.id })}

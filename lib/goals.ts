@@ -69,18 +69,23 @@ export function notLearnedCount(cards: Card[], progress: ProgressMap): number {
 export const WEAK_COUNT = 8
 
 /**
- * A card is weak until it is solid - answered correctly three times running (box 4).
- * Deliberately a third threshold alongside learned (box >= 2) and mastered (box 5):
- * "words to shore up" must mean cards that still need work, not just the bottom of
- * the pile, or the list would keep offering box-5 cards once everything is going well.
+ * A card is weak once it has been studied and until it is solid - answered
+ * correctly three times running (box 4). Deliberately a third threshold alongside
+ * learned (box >= 2) and mastered (box 5): "words to shore up" must mean cards
+ * that still need work, not just the bottom of the pile, or the list would keep
+ * offering box-5 cards once everything is going well.
+ *
+ * A card never graded is not weak - it is new. Counting it would tell a learner
+ * on day one that two dozen words they have never seen are already "slipping",
+ * and turn the weak drill into a second way to meet new words.
  */
 export function isWeak(p?: CardProgress): boolean {
-  return (p?.box ?? 1) < 4
+  return (p?.seen ?? 0) > 0 && p!.box < 4
 }
 
 /** The n weakest cards - box ascending, then lastSeen ascending (stalest first) -
- *  drawn only from cards that are still weak. An unseen card counts as box 1,
- *  lastSeen 0. Returns fewer than n, or none at all, when little is weak. */
+ *  drawn only from cards that are still weak - so never from unseen cards.
+ *  Returns fewer than n, or none at all, when little is weak. */
 export function weakestCards(cards: Card[], progress: ProgressMap, n: number): Card[] {
   return cards
     .filter((c) => isWeak(progress[c.id]))

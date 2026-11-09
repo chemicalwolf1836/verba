@@ -183,6 +183,16 @@ body {
 .station-arrive .station-line { animation: station-draw .42s var(--ease-quiet) both; }
 .station-arrive .roundel { animation: station-ring .6s var(--ease-quiet) .3s both; }
 
+/* Input hints. Keyboard shortcuts mean nothing on a phone, and "swipe" means
+   nothing with a mouse, so each hint shows only where its input exists. A
+   touch laptop with a trackpad counts as pointer: fine and gets the keys. */
+@media (hover: none) and (pointer: coarse) {
+  .kbd-hint { display: none !important; }
+}
+@media (hover: hover), (pointer: fine) {
+  .touch-hint { display: none !important; }
+}
+
 /* Focus visibility (quality floor) */
 a:focus-visible, button:focus-visible, input:focus-visible {
   outline: 2px solid var(--color-accent);
