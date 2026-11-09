@@ -13,6 +13,15 @@ type Props = {
   trailing?: React.ReactNode
 }
 
+/**
+ * The way out of a sitting. A real button shape rather than grey text, which
+ * read as a caption and was easy to miss; the pseudo-element grows the touch
+ * target to 44px tall without changing the drawn size. Shared with shadowing so
+ * both sessions leave the same way.
+ */
+export const END_BUTTON =
+  "relative rounded-full border border-[var(--color-line)] bg-[var(--color-card)] px-3.5 py-1.5 text-sm font-bold after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-['']"
+
 const pct = (n: number, d: number) => `${d > 0 ? Math.round((n / d) * 100) : 0}%`
 
 /**
@@ -30,10 +39,7 @@ export function StudyProgress({ position, total, got, missed, onEnd, trailing }:
         </span>
         <span className="text-sm text-[var(--color-muted)]">· {got} right</span>
         {trailing && <span className="ml-auto">{trailing}</span>}
-        <button
-          onClick={onEnd}
-          className={`text-sm font-bold text-[var(--color-muted)] ${trailing ? '' : 'ml-auto'}`}
-        >
+        <button onClick={onEnd} className={`${END_BUTTON} ${trailing ? '' : 'ml-auto'}`}>
           End
         </button>
       </div>
